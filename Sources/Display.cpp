@@ -109,7 +109,9 @@ void Display::setup_array_buffer( void )
 void Display::setup_delaunay( void )
 {
 	for (int i = 0; i < 100; ++i) {
-		_points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
+		// _points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
+		_points.push_back(Vertex(1000.0f * Random::randomFloat(_seed) - 500.0f, 1000.0f * Random::randomFloat(_seed) - 500.0f));
+		// _points.push_back(Vertex(0.5f * Random::randomFloat(_seed) - 0.25f, 0.5f * Random::randomFloat(_seed) - 0.25f));
 	}
 	// (void)_seed;
 	// _points.push_back(Vertex(0, 0));
@@ -119,13 +121,18 @@ void Display::setup_delaunay( void )
 
 	_delaunay = triangulate(_points);
 
+	float maxRadius = 0;
 	for (auto &t : _delaunay) {
-		float radius = t.getRadius();
+		// float radius = t.getRadius();
+		float radius = abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
+				- (t.getV2().getX() - t.getV1().getX()) * (t.getV1().getY() - t.getV0().getY())) * 0.5f;
 		// std::cout << "radius of triangle: " << radius << std::endl;
+		if (radius > maxRadius) maxRadius = radius;
 		_vertices.push_back({t.getV0(), radius});
 		_vertices.push_back({t.getV1(), radius});
 		_vertices.push_back({t.getV2(), radius});
 	}
+	glUniform1f(glGetUniformLocation(_shaderProgram, "maxRadius"), maxRadius);
 	setup_array_buffer();
 
 	// for (auto &t : delaunay) {
@@ -142,7 +149,6 @@ void Display::render( void )
 {
 	glUseProgram(_shaderProgram);
 	glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
-	// glDrawArrays(GL_POINTS, 0, num_part);
 
 	check_glstate("render", false);
 }
@@ -155,7 +161,7 @@ void Display::main_loop( void )
 	glfwSwapInterval(1);
 	glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	check_glstate("setup done, entering main loop\n", true);
 

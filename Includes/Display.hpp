@@ -9,6 +9,7 @@
 # define TICK 0.05
 
 # include "delaunay.hpp"
+# include "Gui.hpp"
 
 typedef struct s_shaderInput {
 	Vertex v;
@@ -21,13 +22,14 @@ class Display
 		GLFWwindow *_window;
 		GLuint _shaderProgram, _vao, _vbo;
 		GLint _winWidth, _winHeight;
-		int _fps, _tps;
+		int _fps, _tps, _nb_points;
+		bool _input_released;
 		float _deltaTime;
 		unsigned _seed;
 		std::vector<Vertex> _points;
 		std::vector<Triangle> _delaunay;
 		std::vector<t_shaderInput> _vertices;
-		// Gui *_gui;
+		Gui *_gui;
 
 		void setup_window( void );
 		void create_shaders( void );

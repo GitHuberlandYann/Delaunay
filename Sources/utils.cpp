@@ -155,14 +155,14 @@ void check_glstate( std::string str, bool displayDebug )
 //                                Textures                                    //
 // ************************************************************************** //
 
-/*
+
 #include "SOIL/SOIL.h"
 typedef struct {
 	unsigned char *content;
 	int width;
 	int height;
 }				t_tex;
-
+/*
 void loadSubTextureArray( int layer, std::string texture_file )
 {
 	// load image
@@ -192,7 +192,7 @@ void loadSubTextureArray( int layer, std::string texture_file )
 	SOIL_free_image_data(img.content);
 
 	check_glstate("Succesfully loaded " + texture_file + " to shader", true);
-}
+}*/
 
 void loadTextureShader( int index, GLuint texture, std::string texture_file )
 {
@@ -220,4 +220,4 @@ void loadTextureShader( int index, GLuint texture, std::string texture_file )
 	SOIL_free_image_data(img.content);
 
 	check_glstate("Succesfully loaded " + texture_file + " to shader", true);
-}*/
+}

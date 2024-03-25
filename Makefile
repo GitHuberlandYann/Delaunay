@@ -2,7 +2,7 @@ NAME			= delaunay
 OBJS_DIR		= Objs
 SRCS_DIR		= Sources
 
-FILES			= main delaunay random Display utils
+FILES			= main delaunay random Display utils Gui Text callbacks
 SRCS			= $(addprefix $(SRCS_DIR)/, $(addsuffix .cpp, $(FILES)))
 OBJS 			= $(addprefix $(OBJS_DIR)/, $(addsuffix .o, $(FILES)))
 
@@ -11,8 +11,8 @@ OBJS 			= $(addprefix $(OBJS_DIR)/, $(addsuffix .o, $(FILES)))
 CC 			= clang++
 CPPFLAGS 	= -Wall -Wextra -Werror -O3 -std=c++17
 SAN 		= -fsanitize=address -g3
-INCLUDES	= -I Includes -I Libs/glfw/include -I Libs/glew-2.2.0/include
-LDFLAGS		= Libs/glfw/src/libglfw3.a Libs/glew-2.2.0/build/lib/libGLEW.a
+INCLUDES	= -I Includes -I Libs/glfw/include -I Libs/SOIL/build/include -I Libs/glew-2.2.0/include
+LDFLAGS		= Libs/glfw/src/libglfw3.a Libs/glew-2.2.0/build/lib/libGLEW.a Libs/SOIL/build/lib/libSOIL.a
 
 # ===---===---===---===---===---===---===---===---===---===---===---===---
 
@@ -30,10 +30,12 @@ $(OBJS_DIR):
 	@mkdir -p $(OBJS_DIR)
 
 setup:
+	cd Libs/SOIL && ./configure && make
 	cd Libs/glfw && cmake . && make
 	cd Libs/glew-2.2.0/build && cmake ./cmake && make
 
 cleanLibs:
+	cd Libs/SOIL && make clean
 	cd Libs/glew-2.2.0 && make clean
 	cd Libs/glfw && make clean
 

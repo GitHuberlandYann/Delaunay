@@ -1,11 +1,11 @@
 #include "Display.hpp"
 #include "random.hpp"
-// #include "callbacks.hpp"
+#include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _seed(1503)
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000), _seed(1503)
 {
-	// _gui = new Gui();
+	_gui = new Gui();
 }
 
 Display::~Display( void )
@@ -20,7 +20,7 @@ Display::~Display( void )
 	glfwMakeContextCurrent(NULL);
     glfwTerminate();
 
-	// delete _gui;
+	delete _gui;
 
 	check_glstate("Display successfully destructed", true);
 }
@@ -31,7 +31,7 @@ Display::~Display( void )
 
 void Display::setup_window( void )
 {
-	// glfwSetErrorCallback(error_callback);
+	glfwSetErrorCallback(error_callback);
 	if (!glfwInit()) {
     	std::cerr << "glfwInit failure" << std::endl;
         exit(1);
@@ -95,7 +95,7 @@ void Display::setup_array_buffer( void )
 	glBindVertexArray(_vao);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-	std::cout << "vSize " << vSize << std::endl;
+	// std::cout << "vSize " << vSize << std::endl;
 	glBufferData(GL_ARRAY_BUFFER, 3 * vSize * sizeof(GLfloat), &_vertices[0].v, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(POSATTRIB);
@@ -108,7 +108,9 @@ void Display::setup_array_buffer( void )
 
 void Display::setup_delaunay( void )
 {
-	for (int i = 0; i < 100; ++i) {
+	_vertices.clear();
+	_points.clear();
+	for (int i = 0; i < _nb_points; ++i) {
 		// _points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
 		_points.push_back(Vertex(1000.0f * Random::randomFloat(_seed) - 500.0f, 1000.0f * Random::randomFloat(_seed) - 500.0f));
 		// _points.push_back(Vertex(0.5f * Random::randomFloat(_seed) - 0.25f, 0.5f * Random::randomFloat(_seed) - 0.25f));
@@ -132,6 +134,7 @@ void Display::setup_delaunay( void )
 		_vertices.push_back({t.getV1(), radius});
 		_vertices.push_back({t.getV2(), radius});
 	}
+	glUseProgram(_shaderProgram);
 	glUniform1f(glGetUniformLocation(_shaderProgram, "maxRadius"), maxRadius);
 	setup_array_buffer();
 
@@ -143,10 +146,27 @@ void Display::setup_delaunay( void )
 
 void Display::handleInputs( void )
 {
+	if (_gui->keyboardControl()) return ;
+
+	if (glfwGetKey(_window, GLFW_KEY_R) == GLFW_PRESS) {
+		setup_delaunay();
+	}
+
+	if (_input_released && glfwGetKey(_window, GLFW_KEY_F3) == GLFW_PRESS) {
+		_input_released = false;
+		if (_gui->createWindow(-1, "Debug window", {20, 20}, {270, 150})) {
+			_gui->addVarFloat("", &_deltaTime, "ms this frame");
+			_gui->addVarInt("", &_fps, " FPS");
+			_gui->addSliderInt("points", &_nb_points, 3, 2500);
+		}
+	} else if (glfwGetKey(_window, GLFW_KEY_F3) == GLFW_RELEASE) {
+		_input_released = true;
+	}
 }
 
 void Display::render( void )
 {
+	glBindVertexArray(_vao);
 	glUseProgram(_shaderProgram);
 	glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
 
@@ -162,6 +182,15 @@ void Display::main_loop( void )
 	glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	set_display_callback(this, _gui);
+	// glfwSetWindowSizeCallback(_window, window_size_callback);
+	// glfwSetWindowPosCallback(_window, window_pos_callback);
+	glfwSetCursorPosCallback(_window, cursor_pos_callback);
+	glfwSetMouseButtonCallback(_window, mouse_button_callback);
+	glfwSetCharCallback(_window, INPUT::character_callback);
+	// glfwSetWindowRefreshCallback(_window, window_refresh_callback);
+	_gui->setWindowSize(_winWidth, _winHeight);
 
 	check_glstate("setup done, entering main loop\n", true);
 
@@ -195,6 +224,7 @@ void Display::main_loop( void )
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		render();
+		_gui->render();
 		glfwSwapBuffers(_window);
 		glfwPollEvents();
 		previousFrame = currentTime;
@@ -211,5 +241,6 @@ void Display::start( void )
 	create_shaders();
 	setup_communication_shaders();
 	setup_delaunay();
+	_gui->start(_window);
 	main_loop();
 }

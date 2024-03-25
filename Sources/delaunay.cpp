@@ -1,21 +1,14 @@
-#include <iostream>
 #include <math.h>
 #include <float.h>
 #include <vector>
+#include "delaunay.hpp"
 
-class Vertex {
-	private:
-		float _x, _y;
-
-	public:
-		Vertex( float x, float y ) : _x(x), _y(y) {}
-
-		bool equals( Vertex &other ) {
-			return (_x == other._x && _y == other._y);
-		}
-		float getX( void ) { return (_x); }
-		float getY( void ) { return (_y); }
-};
+Vertex::Vertex( float x, float y ) : _x(x), _y(y) {}
+bool Vertex::equals( Vertex &other ) {
+	return (_x == other._x && _y == other._y);
+}
+float Vertex::getX( void ) { return (_x); }
+float Vertex::getY( void ) { return (_y); }
 
 class Edge {
 	private:
@@ -30,11 +23,7 @@ class Edge {
 		Vertex getV1( void ) { return (_v1); }
 };
 
-typedef struct s_circle {
-	float x = 0, y = 0, r = 0;
-}				t_circle;
-
-t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
+static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 {
 	float A = v1.getX() - v0.getX();
 	float B = v1.getY() - v0.getY();
@@ -51,7 +40,7 @@ t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 	t_circle res;
 
 	// Collinear points, get extremes and use midpoint as center
-	if (std::round(std::abs(G)) == 0) {
+	if (round(std::abs(G)) == 0) {
 		float minx = std::min(v0.getX(), std::min(v1.getX(), v2.getX()));
 		float miny = std::min(v0.getY(), std::min(v1.getY(), v2.getY()));
 		float maxx = std::max(v0.getX(), std::max(v1.getX(), v2.getX()));
@@ -72,34 +61,27 @@ t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 		dx = res.x - v0.getX();
 		dy = res.y - v0.getY();
 	}
-	res.r = std::sqrt(dx * dx + dy * dy);
+	res.r = sqrt(dx * dx + dy * dy);
 
 	return (res);
 }
 
-class Triangle {
-	private:
-		Vertex _v0, _v1, _v2;
-		t_circle _circumCirc;
-	
-	public:
-		Triangle( Vertex v0, Vertex v1, Vertex v2 ) : _v0(v0), _v1(v1), _v2(v2) {
-			_circumCirc = calcCircumCirc(v0, v1, v2);
-		}
-		bool inCircumCircle( Vertex v ) {
-			float dx = _circumCirc.x - v.getX();
-			float dy = _circumCirc.y - v.getY();
-			return (std::sqrt(dx * dx + dy * dy) <= _circumCirc.r);
-		}
-		bool shareEdge( Triangle t ) {
-			return (_v0.equals(t._v0) || _v0.equals(t._v1) || _v0.equals(t._v2)
-				|| _v1.equals(t._v0) || _v1.equals(t._v1) || _v1.equals(t._v2)
-				|| _v2.equals(t._v0) || _v2.equals(t._v1) || _v2.equals(t._v2));
-		}
-		Vertex getV0( void ) { return (_v0); }
-		Vertex getV1( void ) { return (_v1); }
-		Vertex getV2( void ) { return (_v2); }
-};
+Triangle::Triangle( Vertex v0, Vertex v1, Vertex v2 ) : _v0(v0), _v1(v1), _v2(v2) {
+	_circumCirc = calcCircumCirc(v0, v1, v2);
+}
+bool Triangle::inCircumCircle( Vertex v ) {
+	float dx = _circumCirc.x - v.getX();
+	float dy = _circumCirc.y - v.getY();
+	return (sqrt(dx * dx + dy * dy) <= _circumCirc.r);
+}
+bool Triangle::shareEdge( Triangle t ) {
+	return (_v0.equals(t._v0) || _v0.equals(t._v1) || _v0.equals(t._v2)
+		|| _v1.equals(t._v0) || _v1.equals(t._v1) || _v1.equals(t._v2)
+		|| _v2.equals(t._v0) || _v2.equals(t._v1) || _v2.equals(t._v2));
+}
+Vertex Triangle::getV0( void ) { return (_v0); }
+Vertex Triangle::getV1( void ) { return (_v1); }
+Vertex Triangle::getV2( void ) { return (_v2); }
 
 Triangle superTriangle( std::vector<Vertex> &vertices )
 {
@@ -122,7 +104,7 @@ Triangle superTriangle( std::vector<Vertex> &vertices )
 	return Triangle(v0, v1, v2);
 }
 
-void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
+static void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 {
 	std::vector<Edge> edges;
 
@@ -138,7 +120,7 @@ void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 		}
 	}
 	
-	// rm double edges, TODO check if this really does happen
+	// rm double edges
 	for (auto it = edges.begin(); it != edges.end();) {
 		bool rm = false;
 		for (auto itbis = edges.begin(); itbis != edges.end(); ++itbis) {
@@ -158,6 +140,7 @@ void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 	}
 }
 
+// https://www.gorillasun.de/blog/bowyer-watson-algorithm-for-delaunay-triangulation/
 std::vector<Triangle> triangulate( std::vector<Vertex> &vertices )
 {
 	std::vector<Triangle> res;
@@ -178,25 +161,4 @@ std::vector<Triangle> triangulate( std::vector<Vertex> &vertices )
 		}
 	}
 	return (res);
-}
-
-// https://www.gorillasun.de/blog/bowyer-watson-algorithm-for-delaunay-triangulation/
-int main( void )
-{
-	std::cout << "Hello World!" << std::endl;
-
-	std::vector<Vertex> vertices;
-
-	vertices.push_back(Vertex(0, 0));
-	vertices.push_back(Vertex(0, 1));
-	vertices.push_back(Vertex(1, 0.5));
-	vertices.push_back(Vertex(-1, 0.5));
-
-	std::vector<Triangle> delaunay = triangulate(vertices);
-
-	for (auto &t : delaunay) {
-		std::cout << "sizeof triang is " << sizeof(t) << std::endl;
-		std::cout << "delaunay triangle at " << t.getV0().getX() << ", " << t.getV0().getY() << " - " << t.getV1().getX() << ", " << t.getV1().getY() << " - " << t.getV2().getX() << ", " << t.getV2().getY() << std::endl;
-	}
-	return (0);
 }

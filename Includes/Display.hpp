@@ -8,6 +8,13 @@
 # define NUM_PARTS 10000
 # define TICK 0.05
 
+# include "delaunay.hpp"
+
+typedef struct s_shaderInput {
+	Vertex v;
+	float radius;
+}				t_shaderInput;
+
 class Display
 {
 	private:
@@ -16,12 +23,17 @@ class Display
 		GLint _winWidth, _winHeight;
 		int _fps, _tps;
 		float _deltaTime;
+		unsigned _seed;
+		std::vector<Vertex> _points;
+		std::vector<Triangle> _delaunay;
+		std::vector<t_shaderInput> _vertices;
 		// Gui *_gui;
 
 		void setup_window( void );
 		void create_shaders( void );
 		void setup_communication_shaders( void );
 		void setup_array_buffer( void );
+		void setup_delaunay( void );
 
 		void handleInputs( void );
 		void render( void );

@@ -7,10 +7,12 @@
 
 # include <iostream>
 # include <string>
+# include <vector>
 # include <array>
 
 enum {
-	POSATTRIB
+	POSATTRIB,
+	RADATTRIB
 };
 
 std::string get_file_content( std::string file_name );

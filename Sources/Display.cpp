@@ -3,10 +3,9 @@
 // #include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT)
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _seed(1503)
 {
 	// _gui = new Gui();
-	// std::cout << "core packet size " << CORE_PACKET_SIZE << std::endl;
 }
 
 Display::~Display( void )
@@ -72,6 +71,7 @@ void Display::create_shaders( void )
 	glBindFragDataLocation(_shaderProgram, 0, "outColor");
 
 	glBindAttribLocation(_shaderProgram, POSATTRIB, "position");
+	glBindAttribLocation(_shaderProgram, RADATTRIB, "radius");
 
 	glLinkProgram(_shaderProgram);
 	glUseProgram(_shaderProgram);
@@ -89,18 +89,49 @@ void Display::setup_communication_shaders( void )
 
 void Display::setup_array_buffer( void )
 {
-	std::array<GLfloat, 6> vertices = {0.0f, 0.0f,
-										1.0f, 0.0f,
-										0.0f, 0.7f};
+	size_t vSize = _vertices.size();
+	if (!vSize) return ;
+
 	glBindVertexArray(_vao);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
+	std::cout << "vSize " << vSize << std::endl;
+	glBufferData(GL_ARRAY_BUFFER, 3 * vSize * sizeof(GLfloat), &_vertices[0].v, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(POSATTRIB);
-	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(RADATTRIB);
+	glVertexAttribPointer(RADATTRIB, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
 
 	check_glstate("Display::setup_array_buffer", false);
+}
+
+void Display::setup_delaunay( void )
+{
+	for (int i = 0; i < 100; ++i) {
+		_points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
+	}
+	// (void)_seed;
+	// _points.push_back(Vertex(0, 0));
+	// _points.push_back(Vertex(0, 1));
+	// _points.push_back(Vertex(1, 0.5));
+	// vertices.push_back(Vertex(-1, 0.5));
+
+	_delaunay = triangulate(_points);
+
+	for (auto &t : _delaunay) {
+		float radius = t.getRadius();
+		// std::cout << "radius of triangle: " << radius << std::endl;
+		_vertices.push_back({t.getV0(), radius});
+		_vertices.push_back({t.getV1(), radius});
+		_vertices.push_back({t.getV2(), radius});
+	}
+	setup_array_buffer();
+
+	// for (auto &t : delaunay) {
+	// 	// std::cout << "sizeof triang is " << sizeof(t) << std::endl;
+	// 	std::cout << "delaunay triangle at " << t.getV0().getX() << ", " << t.getV0().getY() << " - " << t.getV1().getX() << ", " << t.getV1().getY() << " - " << t.getV2().getX() << ", " << t.getV2().getY() << std::endl;
+	// }
 }
 
 void Display::handleInputs( void )
@@ -110,7 +141,7 @@ void Display::handleInputs( void )
 void Display::render( void )
 {
 	glUseProgram(_shaderProgram);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
 	// glDrawArrays(GL_POINTS, 0, num_part);
 
 	check_glstate("render", false);
@@ -124,6 +155,7 @@ void Display::main_loop( void )
 	glfwSwapInterval(1);
 	glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	check_glstate("setup done, entering main loop\n", true);
 
@@ -172,6 +204,6 @@ void Display::start( void )
 	setup_window();
 	create_shaders();
 	setup_communication_shaders();
-	setup_array_buffer();
+	setup_delaunay();
 	main_loop();
 }

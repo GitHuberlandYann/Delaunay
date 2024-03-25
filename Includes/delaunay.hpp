@@ -30,6 +30,7 @@ class Triangle {
 		Vertex getV0( void );
 		Vertex getV1( void );
 		Vertex getV2( void );
+		float getRadius( void );
 };
 
 std::vector<Triangle> triangulate( std::vector<Vertex> &vertices );

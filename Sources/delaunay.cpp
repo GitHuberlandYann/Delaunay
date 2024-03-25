@@ -84,6 +84,7 @@ bool Triangle::shareEdge( Triangle &t ) {
 Vertex Triangle::getV0( void ) { return (_v0); }
 Vertex Triangle::getV1( void ) { return (_v1); }
 Vertex Triangle::getV2( void ) { return (_v2); }
+float Triangle::getRadius( void ) { return (_circumCirc.r); }
 
 Triangle superTriangle( std::vector<Vertex> &vertices )
 {

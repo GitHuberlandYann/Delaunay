@@ -25,8 +25,8 @@ class Triangle {
 	public:
 		Triangle( Vertex v0, Vertex v1, Vertex v2 );
 
-		bool inCircumCircle( Vertex v );
-		bool shareEdge( Triangle t );
+		bool inCircumCircle( Vertex &v );
+		bool shareEdge( Triangle &t );
 		Vertex getV0( void );
 		Vertex getV1( void );
 		Vertex getV2( void );

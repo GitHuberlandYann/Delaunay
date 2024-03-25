@@ -2,6 +2,8 @@
 #include <float.h>
 #include <vector>
 #include "delaunay.hpp"
+#include <iostream>
+#include "Benchmark.hpp"
 
 Vertex::Vertex( float x, float y ) : _x(x), _y(y) {}
 bool Vertex::equals( Vertex &other ) {
@@ -46,8 +48,8 @@ static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 		float maxx = std::max(v0.getX(), std::max(v1.getX(), v2.getX()));
 		float maxy = std::max(v0.getY(), std::max(v1.getY(), v2.getY()));
 
-		res.x = (minx + maxx) / 2;
-		res.y = (miny + maxy) / 2;
+		res.x = (minx + maxx) * 0.5f;
+		res.y = (miny + maxy) * 0.5f;
 
 		dx = res.x - minx;
 		dy = res.y - miny;
@@ -61,7 +63,7 @@ static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 		dx = res.x - v0.getX();
 		dy = res.y - v0.getY();
 	}
-	res.r = sqrt(dx * dx + dy * dy);
+	res.r = (dx * dx + dy * dy);  // sqrt
 
 	return (res);
 }
@@ -69,12 +71,12 @@ static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 Triangle::Triangle( Vertex v0, Vertex v1, Vertex v2 ) : _v0(v0), _v1(v1), _v2(v2) {
 	_circumCirc = calcCircumCirc(v0, v1, v2);
 }
-bool Triangle::inCircumCircle( Vertex v ) {
+bool Triangle::inCircumCircle( Vertex &v ) {
 	float dx = _circumCirc.x - v.getX();
 	float dy = _circumCirc.y - v.getY();
-	return (sqrt(dx * dx + dy * dy) <= _circumCirc.r);
+	return ((dx * dx + dy * dy) <= _circumCirc.r);  // sqrt
 }
-bool Triangle::shareEdge( Triangle t ) {
+bool Triangle::shareEdge( Triangle &t ) {
 	return (_v0.equals(t._v0) || _v0.equals(t._v1) || _v0.equals(t._v2)
 		|| _v1.equals(t._v0) || _v1.equals(t._v1) || _v1.equals(t._v2)
 		|| _v2.equals(t._v0) || _v2.equals(t._v1) || _v2.equals(t._v2));
@@ -145,12 +147,15 @@ std::vector<Triangle> triangulate( std::vector<Vertex> &vertices )
 {
 	std::vector<Triangle> res;
 
+    // Bench b;
 	Triangle st = superTriangle(vertices);
 	res.push_back(st);
+    // b.stamp("super triangle");
 
 	for (auto &v : vertices) {
 		addVertex(res, v);
 	}
+    // b.stamp("addVertex");
 
 	// rm triangles that share edge with superTriangle
 	for (auto it = res.begin(); it != res.end();) {
@@ -160,5 +165,6 @@ std::vector<Triangle> triangulate( std::vector<Vertex> &vertices )
 			++it;
 		}
 	}
+    // b.stamp("rm shared edges");
 	return (res);
 }

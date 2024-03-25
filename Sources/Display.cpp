@@ -3,7 +3,8 @@
 #include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000), _seed(1503)
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000), _seed(1503),
+	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
 {
 	_gui = new Gui();
 }
@@ -81,6 +82,10 @@ void Display::create_shaders( void )
 
 void Display::setup_communication_shaders( void )
 {
+	_uniMaxRadius = glGetUniformLocation(_shaderProgram, "maxRadius");
+	_uniBigColor = glGetUniformLocation(_shaderProgram, "bigColor");
+	_uniSmallColor = glGetUniformLocation(_shaderProgram, "smallColor");
+
 	glGenVertexArrays(1, &_vao);
 	glGenBuffers(1, &_vbo);
 
@@ -135,7 +140,7 @@ void Display::setup_delaunay( void )
 		_vertices.push_back({t.getV2(), radius});
 	}
 	glUseProgram(_shaderProgram);
-	glUniform1f(glGetUniformLocation(_shaderProgram, "maxRadius"), maxRadius);
+	glUniform1f(_uniMaxRadius, maxRadius);
 	setup_array_buffer();
 
 	// for (auto &t : delaunay) {
@@ -158,6 +163,8 @@ void Display::handleInputs( void )
 			_gui->addVarFloat("", &_deltaTime, "ms this frame");
 			_gui->addVarInt("", &_fps, " FPS");
 			_gui->addSliderInt("points", &_nb_points, 3, 2500);
+			_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
+			_gui->addColor("small color", {&_smallCol[0], &_smallCol[1], &_smallCol[2], &_smallCol[3]});
 		}
 	} else if (glfwGetKey(_window, GLFW_KEY_F3) == GLFW_RELEASE) {
 		_input_released = true;
@@ -168,6 +175,8 @@ void Display::render( void )
 {
 	glBindVertexArray(_vao);
 	glUseProgram(_shaderProgram);
+	glUniform4fv(_uniBigColor, 1, &_bigCol[0]);
+	glUniform4fv(_uniSmallColor, 1, &_smallCol[0]);
 	glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
 
 	check_glstate("render", false);

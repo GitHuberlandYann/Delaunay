@@ -1,10 +1,10 @@
 #version 150 core
 
-in float greyScale;
+in vec4 color;
 
 out vec4 outColor;
 
 void main()
 {
-	outColor = vec4(greyScale, greyScale, greyScale, 1.0);
+	outColor = color;
 }

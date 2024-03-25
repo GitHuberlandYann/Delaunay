@@ -21,11 +21,13 @@ class Display
 	private:
 		GLFWwindow *_window;
 		GLuint _shaderProgram, _vao, _vbo;
+		GLint _uniMaxRadius, _uniBigColor, _uniSmallColor;
 		GLint _winWidth, _winHeight;
 		int _fps, _tps, _nb_points;
 		bool _input_released;
 		float _deltaTime;
 		unsigned _seed;
+		std::array<float, 4> _bigCol, _smallCol;
 		std::vector<Vertex> _points;
 		std::vector<Triangle> _delaunay;
 		std::vector<t_shaderInput> _vertices;

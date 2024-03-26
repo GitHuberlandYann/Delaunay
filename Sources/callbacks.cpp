@@ -20,7 +20,7 @@ static void window_size_callback( GLFWwindow *window, int width, int height )
 	(void)window;
 	// std::cout << "window resized to " << width << ", " << height << std::endl;
 	if (display) {
-		// display->setWindowSize(width, height);
+		display->setWindowSize(width, height);
 		if (IS_LINUX) {
 			glViewport(0, 0, width, height);
 		}

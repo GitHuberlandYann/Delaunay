@@ -4,7 +4,8 @@
 
 Display::Display( void )
 	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000),
-	_update_points(false), _draw_points(true), _draw_delaunay(false), _seed(1503),
+	_update_points(false), _draw_points(true), _draw_delaunay(false), _speed_multiplier(1.0f),
+	_zoom(1.0f), _center({0.0f, 0.0f}), _seed(1503),
 	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
 {
 	_gui = new Gui();
@@ -47,7 +48,7 @@ void Display::setup_window( void )
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 	// glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GL_TRUE);
 
 	_window = glfwCreateWindow(_winWidth, _winHeight, "Delaunay", nullptr, nullptr);
@@ -112,6 +113,11 @@ void Display::setup_communication_shaders( void )
 {
 	_uniDeltaT = glGetUniformLocation(_pointsUpdateProgram, "deltaTime");
 
+	_uniPZoom = glGetUniformLocation(_pointsRenderProgram, "zoom");
+	_uniPCenter = glGetUniformLocation(_pointsRenderProgram, "center");
+
+	_uniZoom = glGetUniformLocation(_shaderProgram, "zoom");
+	_uniCenter = glGetUniformLocation(_shaderProgram, "center");
 	_uniMaxRadius = glGetUniformLocation(_shaderProgram, "maxRadius");
 	_uniBigColor = glGetUniformLocation(_shaderProgram, "bigColor");
 	_uniSmallColor = glGetUniformLocation(_shaderProgram, "smallColor");
@@ -119,7 +125,7 @@ void Display::setup_communication_shaders( void )
 	glGenVertexArrays(2, _vaos);
 	glGenBuffers(2, _vbos);
 
-	check_glstate("\nCommunication with shader program successfully established", true);
+	check_glstate("\nCommunication with shader programs successfully established", true);
 }
 
 void Display::setup_array_buffer( void )
@@ -253,8 +259,13 @@ void Display::handleInputs( void )
 			_gui->addBool("draw points", &_draw_points);
 			_gui->addBool("draw delaunay", &_draw_delaunay);
 			_gui->addSliderInt("points", &_nb_points, 3, 2500);
+			_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
+			_gui->addSliderFloat("zoom", &_zoom, 0.5f, 5.0f);
+			_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
+			_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
 			_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
 			_gui->addColor("small color", {&_smallCol[0], &_smallCol[1], &_smallCol[2], &_smallCol[3]});
+			_gui->addButton("RANDOMIZE", gui_randomize_callback);
 		}
 	} else if (glfwGetKey(_window, GLFW_KEY_F3) == GLFW_RELEASE) {
 		_input_released = true;
@@ -266,7 +277,7 @@ void Display::render( void )
 	if (_update_points) {
 		glBindVertexArray(_vaos[BUFFER::POINTS]);
 		glUseProgram(_pointsUpdateProgram);
-		glUniform1f(_uniDeltaT, _deltaTime / 1000);
+		glUniform1f(_uniDeltaT, _speed_multiplier * _deltaTime / 1000);
 
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, _vbos[BUFFER::POINTS]);
 		glEnable(GL_RASTERIZER_DISCARD); // we don't render anything
@@ -287,12 +298,16 @@ void Display::render( void )
 	if (_draw_points) {
 		glBindVertexArray(_vaos[BUFFER::POINTS]);
 		glUseProgram(_pointsRenderProgram);
+		glUniform1f(_uniPZoom, _zoom);
+		glUniform2fv(_uniPCenter, 1, &_center[0]);
 		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
 	}
 
 	if (_draw_delaunay) {
 		glBindVertexArray(_vaos[BUFFER::TRIANGLES]);
 		glUseProgram(_shaderProgram);
+		glUniform1f(_uniZoom, _zoom);
+		glUniform2fv(_uniCenter, 1, &_center[0]);
 		glUniform4fv(_uniBigColor, 1, &_bigCol[0]);
 		glUniform4fv(_uniSmallColor, 1, &_smallCol[0]);
 		glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
@@ -317,7 +332,7 @@ void Display::main_loop( void )
 	glfwSetCursorPosCallback(_window, cursor_pos_callback);
 	glfwSetMouseButtonCallback(_window, mouse_button_callback);
 	glfwSetCharCallback(_window, INPUT::character_callback);
-	// glfwSetWindowRefreshCallback(_window, window_refresh_callback);
+	glfwSetWindowRefreshCallback(_window, window_refresh_callback);
 	_gui->setWindowSize(_winWidth, _winHeight);
 
 	check_glstate("setup done, entering main loop\n", true);
@@ -362,6 +377,13 @@ void Display::main_loop( void )
 // ************************************************************************** //
 //                                Public                                      //
 // ************************************************************************** //
+
+void Display::setWindowSize( int width, int height )
+{
+	_winWidth = width;
+	_winHeight = height;
+	_gui->setWindowSize(width, height);
+}
 
 void Display::start( void )
 {

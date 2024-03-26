@@ -31,11 +31,12 @@ class Display
 	private:
 		GLFWwindow *_window;
 		GLuint _pointsUpdateProgram, _pointsRenderProgram, _shaderProgram, _vaos[2], _vbos[2];
-		GLint _uniDeltaT, _uniMaxRadius, _uniBigColor, _uniSmallColor;
+		GLint _uniPZoom, _uniPCenter, _uniZoom, _uniCenter, _uniDeltaT, _uniMaxRadius, _uniBigColor, _uniSmallColor;
 		GLint _winWidth, _winHeight;
 		int _fps, _tps, _nb_points;
 		bool _input_released, _update_points, _draw_points, _draw_delaunay;
-		float _deltaTime;
+		float _deltaTime, _speed_multiplier, _zoom;
+		std::array<float, 2> _center;
 		unsigned _seed;
 		std::array<float, 4> _bigCol, _smallCol;
 		std::vector<Vertex> _points;
@@ -58,6 +59,8 @@ class Display
 	public:
 		Display( void );
 		~Display( void );
+
+		void setWindowSize( int width, int height );
 
 		void start( void );
 };

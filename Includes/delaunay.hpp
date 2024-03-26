@@ -33,6 +33,8 @@ class Triangle {
 		float getRadius( void );
 };
 
+# include <fstream>
+
 std::ostream &operator<<( std::ostream &out, Triangle &t );
 
 std::vector<Triangle> triangulate( std::vector<Vertex> &vertices );

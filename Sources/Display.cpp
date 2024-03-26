@@ -3,7 +3,8 @@
 #include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000), _seed(1503),
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000),
+	_update_points(false), _draw_points(true), _draw_delaunay(false), _seed(1503),
 	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
 {
 	_gui = new Gui();
@@ -13,10 +14,12 @@ Display::~Display( void )
 {
 	std::cout << "Destructor of display called" << std::endl;
 
+	glDeleteProgram(_pointsUpdateProgram);
+	glDeleteProgram(_pointsRenderProgram);
 	glDeleteProgram(_shaderProgram);
 
-	glDeleteBuffers(1, &_vbo);
-	glDeleteVertexArrays(1, &_vao);
+	glDeleteBuffers(2, _vbos);
+	glDeleteVertexArrays(2, _vaos);
 
 	glfwMakeContextCurrent(NULL);
     glfwTerminate();
@@ -44,7 +47,7 @@ void Display::setup_window( void )
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 	// glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GL_TRUE);
 
 	_window = glfwCreateWindow(_winWidth, _winHeight, "Delaunay", nullptr, nullptr);
@@ -67,6 +70,31 @@ void Display::setup_window( void )
 
 void Display::create_shaders( void )
 {
+	_pointsUpdateProgram = createShaderProgram("points_update_vertex", "", "");
+
+	glBindAttribLocation(_pointsUpdateProgram, POSATTRIB, "position");
+	glBindAttribLocation(_pointsUpdateProgram, SPDATTRIB, "velocity");
+
+	const GLchar *feedbackVaryings[] = {"Position", "Velocity"};
+	glTransformFeedbackVaryings(_pointsUpdateProgram, 2, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
+
+	glLinkProgram(_pointsUpdateProgram);
+	glUseProgram(_pointsUpdateProgram);
+
+	check_glstate("points update shader program successfully created", true);
+
+	_pointsRenderProgram = createShaderProgram("points_render_vertex", "", "points_render_fragment");
+
+	glBindFragDataLocation(_pointsRenderProgram, 0, "outColor");
+
+	glBindAttribLocation(_pointsRenderProgram, POSATTRIB, "position");
+	glBindAttribLocation(_pointsRenderProgram, SPDATTRIB, "velocity");
+
+	glLinkProgram(_pointsRenderProgram);
+	glUseProgram(_pointsRenderProgram);
+
+	check_glstate("points render shader program successfully created", true);
+
 	_shaderProgram = createShaderProgram("vertex", "", "fragment");
 
 	glBindFragDataLocation(_shaderProgram, 0, "outColor");
@@ -82,24 +110,42 @@ void Display::create_shaders( void )
 
 void Display::setup_communication_shaders( void )
 {
+	_uniDeltaT = glGetUniformLocation(_pointsUpdateProgram, "deltaTime");
+
 	_uniMaxRadius = glGetUniformLocation(_shaderProgram, "maxRadius");
 	_uniBigColor = glGetUniformLocation(_shaderProgram, "bigColor");
 	_uniSmallColor = glGetUniformLocation(_shaderProgram, "smallColor");
 
-	glGenVertexArrays(1, &_vao);
-	glGenBuffers(1, &_vbo);
+	glGenVertexArrays(2, _vaos);
+	glGenBuffers(2, _vbos);
 
 	check_glstate("\nCommunication with shader program successfully established", true);
 }
 
 void Display::setup_array_buffer( void )
 {
+	size_t pSize = _update_vertices.size();
+	if (!pSize) return ;
+
+	glBindVertexArray(_vaos[BUFFER::POINTS]);
+
+	glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::POINTS]);
+	// std::cout << "vSize " << vSize << std::endl;
+	glBufferData(GL_ARRAY_BUFFER, 4 * pSize * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(POSATTRIB);
+	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(SPDATTRIB);
+	glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+
+	check_glstate("Display::setup_array_buffer - update vertices", false);
+
 	size_t vSize = _vertices.size();
 	if (!vSize) return ;
 
-	glBindVertexArray(_vao);
+	glBindVertexArray(_vaos[BUFFER::TRIANGLES]);
 
-	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::TRIANGLES]);
 	// std::cout << "vSize " << vSize << std::endl;
 	glBufferData(GL_ARRAY_BUFFER, 3 * vSize * sizeof(GLfloat), &_vertices[0].v, GL_STATIC_DRAW);
 
@@ -113,11 +159,15 @@ void Display::setup_array_buffer( void )
 
 void Display::setup_delaunay( void )
 {
+	_update_vertices.clear();
 	_vertices.clear();
 	_points.clear();
 	for (int i = 0; i < _nb_points; ++i) {
+		Vertex point(Vertex(1000.0f * Random::randomFloat(_seed) - 500.0f, 1000.0f * Random::randomFloat(_seed) - 500.0f));
 		// _points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
-		_points.push_back(Vertex(1000.0f * Random::randomFloat(_seed) - 500.0f, 1000.0f * Random::randomFloat(_seed) - 500.0f));
+		float vx = 2.0f * Random::randomFloat(_seed) - 1.0f, vy = 2.0f * Random::randomFloat(_seed) - 1.0f;
+		_update_vertices.push_back({point, Vertex((vx > 0) ? 50.0f + vx * 10.0f : -50.0f + vx * 10.0f, (vy > 0) ? 50.0f + vy * 10.0f : -50.0f + vy * 10.0f)});
+		_points.push_back(point);
 		// _points.push_back(Vertex(0.5f * Random::randomFloat(_seed) - 0.25f, 0.5f * Random::randomFloat(_seed) - 0.25f));
 	}
 	// (void)_seed;
@@ -131,7 +181,7 @@ void Display::setup_delaunay( void )
 	float maxRadius = 0;
 	for (auto &t : _delaunay) {
 		// float radius = t.getRadius();
-		float radius = abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
+		float radius = std::abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
 				- (t.getV2().getX() - t.getV1().getX()) * (t.getV1().getY() - t.getV0().getY())) * 0.5f;
 		// std::cout << "radius of triangle: " << radius << std::endl;
 		if (radius > maxRadius) maxRadius = radius;
@@ -142,11 +192,48 @@ void Display::setup_delaunay( void )
 	glUseProgram(_shaderProgram);
 	glUniform1f(_uniMaxRadius, maxRadius);
 	setup_array_buffer();
+}
 
-	// for (auto &t : delaunay) {
-	// 	// std::cout << "sizeof triang is " << sizeof(t) << std::endl;
-	// 	std::cout << "delaunay triangle at " << t.getV0().getX() << ", " << t.getV0().getY() << " - " << t.getV1().getX() << ", " << t.getV1().getY() << " - " << t.getV2().getX() << ", " << t.getV2().getY() << std::endl;
-	// }
+void Display::reset_delaunay( void )
+{
+	_points.clear();
+	_vertices.clear();
+
+	for (auto &point : _update_vertices) {
+		_points.push_back(point.v);
+	}
+
+	_delaunay = triangulate(_points);
+
+	float maxRadius = 0;
+	for (auto &t : _delaunay) {
+		// float radius = t.getRadius();
+		float radius = std::abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
+				- (t.getV2().getX() - t.getV1().getX()) * (t.getV1().getY() - t.getV0().getY())) * 0.5f;
+		// std::cout << "radius of triangle: " << radius << std::endl;
+		if (radius > maxRadius) maxRadius = radius;
+		_vertices.push_back({t.getV0(), radius});
+		_vertices.push_back({t.getV1(), radius});
+		_vertices.push_back({t.getV2(), radius});
+	}
+	glUseProgram(_shaderProgram);
+	glUniform1f(_uniMaxRadius, maxRadius);
+		
+	size_t vSize = _vertices.size();
+	if (!vSize) return ;
+
+	glBindVertexArray(_vaos[BUFFER::TRIANGLES]);
+
+	glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::TRIANGLES]);
+	// std::cout << "vSize " << vSize << std::endl;
+	glBufferData(GL_ARRAY_BUFFER, 3 * vSize * sizeof(GLfloat), &_vertices[0].v, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(POSATTRIB);
+	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(RADATTRIB);
+	glVertexAttribPointer(RADATTRIB, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+
+	check_glstate("Display::reset_delaunay", false);
 }
 
 void Display::handleInputs( void )
@@ -162,6 +249,9 @@ void Display::handleInputs( void )
 		if (_gui->createWindow(-1, "Debug window", {20, 20}, {270, 150})) {
 			_gui->addVarFloat("", &_deltaTime, "ms this frame");
 			_gui->addVarInt("", &_fps, " FPS");
+			_gui->addBool("update points", &_update_points);
+			_gui->addBool("draw points", &_draw_points);
+			_gui->addBool("draw delaunay", &_draw_delaunay);
 			_gui->addSliderInt("points", &_nb_points, 3, 2500);
 			_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
 			_gui->addColor("small color", {&_smallCol[0], &_smallCol[1], &_smallCol[2], &_smallCol[3]});
@@ -173,11 +263,40 @@ void Display::handleInputs( void )
 
 void Display::render( void )
 {
-	glBindVertexArray(_vao);
-	glUseProgram(_shaderProgram);
-	glUniform4fv(_uniBigColor, 1, &_bigCol[0]);
-	glUniform4fv(_uniSmallColor, 1, &_smallCol[0]);
-	glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
+	if (_update_points) {
+		glBindVertexArray(_vaos[BUFFER::POINTS]);
+		glUseProgram(_pointsUpdateProgram);
+		glUniform1f(_uniDeltaT, _deltaTime / 1000);
+
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, _vbos[BUFFER::POINTS]);
+		glEnable(GL_RASTERIZER_DISCARD); // we don't render anything
+
+		glBeginTransformFeedback(GL_POINTS);
+		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
+		glEndTransformFeedback();
+
+		// read update's output and gen new delaunay
+		glFlush();
+		glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 4 * sizeof(GLfloat) * _update_vertices.size(), &_update_vertices[0].v);
+		reset_delaunay();
+
+		glDisable(GL_RASTERIZER_DISCARD);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, NULL); // unbind transform feedback buffer
+	}
+
+	if (_draw_points) {
+		glBindVertexArray(_vaos[BUFFER::POINTS]);
+		glUseProgram(_pointsRenderProgram);
+		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
+	}
+
+	if (_draw_delaunay) {
+		glBindVertexArray(_vaos[BUFFER::TRIANGLES]);
+		glUseProgram(_shaderProgram);
+		glUniform4fv(_uniBigColor, 1, &_bigCol[0]);
+		glUniform4fv(_uniSmallColor, 1, &_smallCol[0]);
+		glDrawArrays(GL_TRIANGLES, 0, _vertices.size());
+	}
 
 	check_glstate("render", false);
 }

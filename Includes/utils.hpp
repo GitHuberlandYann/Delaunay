@@ -11,8 +11,9 @@
 # include <array>
 
 enum {
-	POSATTRIB,
-	RADATTRIB
+	POSATTRIB = 0,
+	RADATTRIB = 1,
+	SPDATTRIB = 1,
 };
 
 std::string get_file_content( std::string file_name );

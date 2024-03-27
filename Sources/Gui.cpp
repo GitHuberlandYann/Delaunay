@@ -218,7 +218,7 @@ void Gui::renderWindow( t_window &win, int windex )
 				_text->addQuads(0, win.pos[0] + 10, posY, win.size[0] / 2, title_height, RGBA::BUTTON);
 				_text->addQuads(0, win.pos[0] + 10 + (win.size[0] / 2 - title_height + 8) * getPercent(*cont.fslider, cont.frange_start, cont.frange_end),
 						posY + 2, title_height - 8, title_height - 4, (win.selection == index) ? RGBA::SLIDER_HOVER : RGBA::SLIDER);
-				str = to_string_with_precision(*cont.fslider, 2, false);
+				str = to_string_with_precision(*cont.fslider, cont.irange_start, false);
 				_text->addText(win.pos[0] + 10 + win.size[0] / 4 - _text->textWidth(font, str) / 2, posY + 4, font, RGBA::WHITE, str);
 				_text->addText(win.pos[0] + win.size[0] / 2 + 20, posY + 4, font, RGBA::WHITE, cont.name, win.size[0] / 2 - 30);
 				break ;
@@ -675,12 +675,13 @@ void Gui::addSliderInt( std::string name, int *ptr, int minRange, int maxRange )
  * @param ptr pointer to float variable modified by slider
  * @param minRange the minimum value the variable can be set to
  * @param minRange the maximum value the variable can be set to
+ * @param precision optional. nb decimals displayed after point
  */
-void Gui::addSliderFloat( std::string name, float *ptr, float minRange, float maxRange )
+void Gui::addSliderFloat( std::string name, float *ptr, float minRange, float maxRange, int precision )
 {
 	if (_content.empty() || !ptr) return ;
 
-	addContainer({CONTAINER::SLIDER_FLOAT, name, NULL, NULL, 0, 0, ptr, minRange, maxRange});
+	addContainer({CONTAINER::SLIDER_FLOAT, name, NULL, NULL, precision, 0, ptr, minRange, maxRange});
 }
 
 /**

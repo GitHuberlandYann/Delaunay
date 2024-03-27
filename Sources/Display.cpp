@@ -3,9 +3,9 @@
 #include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000),
-	_update_points(false), _draw_points(true), _draw_delaunay(false), _speed_multiplier(1.0f),
-	_zoom(1.0f), _center({0.0f, 0.0f}), _seed(1503),
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _texture(0), _nb_points(1000),
+	_update_boids(false), _update_points(false), _draw_points(true), _draw_delaunay(false),
+	_speed_multiplier(1.0f), _zoom(1.0f), _center({0.0f, 0.0f}), _seed(1503),
 	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
 {
 	_gui = new Gui();
@@ -15,6 +15,12 @@ Display::~Display( void )
 {
 	std::cout << "Destructor of display called" << std::endl;
 
+	if (_texture) {
+		glDeleteTextures(1, &_texture);
+		glDeleteBuffers(1, &_textureBuffer);
+	}
+
+	glDeleteProgram(_pointsBoidsProgram);
 	glDeleteProgram(_pointsUpdateProgram);
 	glDeleteProgram(_pointsRenderProgram);
 	glDeleteProgram(_shaderProgram);
@@ -71,12 +77,24 @@ void Display::setup_window( void )
 
 void Display::create_shaders( void )
 {
+	_pointsBoidsProgram = createShaderProgram("boids_vertex", "", "");
+
+	glBindAttribLocation(_pointsBoidsProgram, POSATTRIB, "position");
+	glBindAttribLocation(_pointsBoidsProgram, SPDATTRIB, "velocity");
+
+	const GLchar *feedbackVaryings[] = {"Position", "Velocity"};
+	glTransformFeedbackVaryings(_pointsBoidsProgram, 2, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
+
+	glLinkProgram(_pointsBoidsProgram);
+	glUseProgram(_pointsBoidsProgram);
+
+	check_glstate("points boids shader program successfully created", true);
+
 	_pointsUpdateProgram = createShaderProgram("points_update_vertex", "", "");
 
 	glBindAttribLocation(_pointsUpdateProgram, POSATTRIB, "position");
 	glBindAttribLocation(_pointsUpdateProgram, SPDATTRIB, "velocity");
 
-	const GLchar *feedbackVaryings[] = {"Position", "Velocity"};
 	glTransformFeedbackVaryings(_pointsUpdateProgram, 2, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
 
 	glLinkProgram(_pointsUpdateProgram);
@@ -111,6 +129,15 @@ void Display::create_shaders( void )
 
 void Display::setup_communication_shaders( void )
 {
+	_uniBDeltaT = glGetUniformLocation(_pointsBoidsProgram, "deltaTime");
+	_uniBSampler = glGetUniformLocation(_pointsBoidsProgram, "boids");
+	_uniBNbBoids = glGetUniformLocation(_pointsBoidsProgram, "nbBoids");
+	_uniBVisualRange = glGetUniformLocation(_pointsBoidsProgram, "visualRange");
+	_uniBCenteringFactor = glGetUniformLocation(_pointsBoidsProgram, "centeringFactor");
+	_uniBMinDist = glGetUniformLocation(_pointsBoidsProgram, "minDistance");
+	_uniBAvoidFactor = glGetUniformLocation(_pointsBoidsProgram, "avoidFactor");
+	_uniBMatchingFactor = glGetUniformLocation(_pointsBoidsProgram, "matchingFactor");
+
 	_uniDeltaT = glGetUniformLocation(_pointsUpdateProgram, "deltaTime");
 
 	_uniPZoom = glGetUniformLocation(_pointsRenderProgram, "zoom");
@@ -163,6 +190,26 @@ void Display::setup_array_buffer( void )
 	check_glstate("Display::setup_array_buffer", false);
 }
 
+void Display::update_texture( void )
+{
+	if (!_texture) {
+		glGenTextures(1, &_texture);
+		glGenBuffers(1, &_textureBuffer);
+	}
+
+	glBindBuffer(GL_TEXTURE_BUFFER, _textureBuffer);
+	glBufferData(GL_TEXTURE_BUFFER, 4 * _update_vertices.size() * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_BUFFER, _texture);
+
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, _textureBuffer);
+
+	glUniform1i(_uniBSampler, 0);
+
+	check_glstate("Display::update_texture", false);
+}
+
 void Display::setup_delaunay( void )
 {
 	_update_vertices.clear();
@@ -202,6 +249,8 @@ void Display::setup_delaunay( void )
 
 void Display::reset_delaunay( void )
 {
+	if (!_draw_delaunay) return ;
+
 	_points.clear();
 	_vertices.clear();
 
@@ -255,6 +304,12 @@ void Display::handleInputs( void )
 		if (_gui->createWindow(-1, "Debug window", {20, 20}, {270, 150})) {
 			_gui->addVarFloat("", &_deltaTime, "ms this frame");
 			_gui->addVarInt("", &_fps, " FPS");
+			_gui->addBool("boids", &_update_boids);
+			_gui->addSliderFloat("visual range", &_boidSettings.visualRange, 0, 500);
+			_gui->addSliderFloat("centering factor", &_boidSettings.centeringFactor, 0, 0.03f, 3);
+			_gui->addSliderFloat("min dist", &_boidSettings.minDistance, 0, 100, 3);
+			_gui->addSliderFloat("avoid factor", &_boidSettings.avoidFactor, 0, 0.3f, 3);
+			_gui->addSliderFloat("matching factor", &_boidSettings.matchingFactor, 0, 0.3f, 3);
 			_gui->addBool("update points", &_update_points);
 			_gui->addBool("draw points", &_draw_points);
 			_gui->addBool("draw delaunay", &_draw_delaunay);
@@ -274,16 +329,36 @@ void Display::handleInputs( void )
 
 void Display::render( void )
 {
-	if (_update_points) {
+	if (_update_boids || _update_points) {
 		glBindVertexArray(_vaos[BUFFER::POINTS]);
-		glUseProgram(_pointsUpdateProgram);
-		glUniform1f(_uniDeltaT, _speed_multiplier * _deltaTime / 1000);
+
+		if (_update_boids) {
+			glUseProgram(_pointsBoidsProgram);
+			glUniform1f(_uniBDeltaT, _speed_multiplier * _deltaTime / 1000);
+			// update_texture();
+			glUniform1i(_uniBNbBoids, _nb_points);
+			glUniform1f(_uniBVisualRange, _boidSettings.visualRange);
+			glUniform1f(_uniBCenteringFactor, _boidSettings.centeringFactor);
+			glUniform1f(_uniBMinDist, _boidSettings.minDistance);
+			glUniform1f(_uniBAvoidFactor, _boidSettings.avoidFactor);
+			glUniform1f(_uniBMatchingFactor, _boidSettings.matchingFactor);
+		} else {
+			glUseProgram(_pointsUpdateProgram);
+			glUniform1f(_uniDeltaT, _speed_multiplier * _deltaTime / 1000);
+		}
 
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, _vbos[BUFFER::POINTS]);
 		glEnable(GL_RASTERIZER_DISCARD); // we don't render anything
 
 		glBeginTransformFeedback(GL_POINTS);
-		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
+		if (_update_boids) {
+			for (int i = 0; i < _nb_points; ++i) {
+				update_texture();
+				glDrawArrays(GL_POINTS, i, 1);
+			}
+		} else {
+			glDrawArrays(GL_POINTS, 0, _update_vertices.size());
+		}
 		glEndTransformFeedback();
 
 		// read update's output and gen new delaunay

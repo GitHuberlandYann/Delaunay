@@ -95,7 +95,7 @@ class Gui
 		void addButton( std::string name, void (*foo_ptr)( int ), int *iptr = NULL, int i = -1 );
 		void addBool( std::string name, bool *ptr );
 		void addSliderInt( std::string name, int *ptr, int minRange = 0, int maxRange = 10 );
-		void addSliderFloat( std::string name, float *ptr, float minRange = 0.0f, float maxRange = 1.0f );
+		void addSliderFloat( std::string name, float *ptr, float minRange = 0.0f, float maxRange = 1.0f, int precision = 2 );
 		void addEnum( std::vector<std::string> enu_list, int *iptr, void (*foo_ptr)( int ) = NULL );
 		void addColor( std::string name, std::array<float*, 4> color );
 };

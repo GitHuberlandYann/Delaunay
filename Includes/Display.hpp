@@ -38,11 +38,9 @@ class Display
 {
 	private:
 		GLFWwindow *_window;
-		GLuint _pointsBoidsProgram, _pointsUpdateProgram, _pointsRenderProgram, _shaderProgram, _vaos[2], _vbos[2];
-		GLint _uniBDeltaT, _uniBSampler, _uniBNbBoids, _uniBVisualRange, _uniBCenteringFactor, _uniBMinDist, _uniBAvoidFactor, _uniBMatchingFactor;
+		GLuint _pointsUpdateProgram, _pointsRenderProgram, _shaderProgram, _vaos[2], _vbos[2];
 		GLint _uniPZoom, _uniPCenter, _uniZoom, _uniCenter, _uniDeltaT, _uniMaxRadius, _uniBigColor, _uniSmallColor;
 		GLint _winWidth, _winHeight;
-		GLuint _texture, _textureBuffer;
 		t_boidSettings _boidSettings;
 		int _fps, _tps, _nb_points;
 		bool _input_released, _update_boids, _update_points, _draw_points, _draw_delaunay;
@@ -60,7 +58,6 @@ class Display
 		void create_shaders( void );
 		void setup_communication_shaders( void );
 		void setup_array_buffer( void );
-		void update_texture( void );
 		void setup_delaunay( void );
 		void reset_delaunay( void );
 

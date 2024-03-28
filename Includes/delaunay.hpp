@@ -9,6 +9,11 @@ class Vertex {
 		Vertex( float x, float y );
 
 		bool equals( Vertex &other );
+		void add( Vertex &other );
+		void addV( Vertex other );
+		Vertex scale( float scale );
+		void addX( float value );
+		void addY( float value );
 		float getX( void );
 		float getY( void );
 };
@@ -36,6 +41,7 @@ class Triangle {
 # include <fstream>
 
 std::ostream &operator<<( std::ostream &out, Triangle &t );
+std::ostream &operator<<( std::ostream &out, Vertex &v );
 
 std::vector<Triangle> triangulate( std::vector<Vertex> &vertices );
 

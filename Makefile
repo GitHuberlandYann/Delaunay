@@ -2,7 +2,7 @@ NAME			= delaunay
 OBJS_DIR		= Objs
 SRCS_DIR		= Sources
 
-FILES			= main delaunay random Display utils Gui Text callbacks
+FILES			= main boids delaunay random Display utils Gui Text callbacks
 SRCS			= $(addprefix $(SRCS_DIR)/, $(addsuffix .cpp, $(FILES)))
 OBJS 			= $(addprefix $(OBJS_DIR)/, $(addsuffix .o, $(FILES)))
 

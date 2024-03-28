@@ -1,9 +1,9 @@
-#include "Display.hpp"
+#include "boids.hpp"
 #include "random.hpp"
 #include "callbacks.hpp"
 
 Display::Display( void )
-	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _texture(0), _nb_points(1000),
+	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000),
 	_update_boids(false), _update_points(false), _draw_points(true), _draw_delaunay(false),
 	_speed_multiplier(1.0f), _zoom(1.0f), _center({0.0f, 0.0f}), _seed(1503),
 	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
@@ -15,12 +15,6 @@ Display::~Display( void )
 {
 	std::cout << "Destructor of display called" << std::endl;
 
-	if (_texture) {
-		glDeleteTextures(1, &_texture);
-		glDeleteBuffers(1, &_textureBuffer);
-	}
-
-	glDeleteProgram(_pointsBoidsProgram);
 	glDeleteProgram(_pointsUpdateProgram);
 	glDeleteProgram(_pointsRenderProgram);
 	glDeleteProgram(_shaderProgram);
@@ -77,24 +71,12 @@ void Display::setup_window( void )
 
 void Display::create_shaders( void )
 {
-	_pointsBoidsProgram = createShaderProgram("boids_vertex", "", "");
-
-	glBindAttribLocation(_pointsBoidsProgram, POSATTRIB, "position");
-	glBindAttribLocation(_pointsBoidsProgram, SPDATTRIB, "velocity");
-
-	const GLchar *feedbackVaryings[] = {"Position", "Velocity"};
-	glTransformFeedbackVaryings(_pointsBoidsProgram, 2, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
-
-	glLinkProgram(_pointsBoidsProgram);
-	glUseProgram(_pointsBoidsProgram);
-
-	check_glstate("points boids shader program successfully created", true);
-
 	_pointsUpdateProgram = createShaderProgram("points_update_vertex", "", "");
 
 	glBindAttribLocation(_pointsUpdateProgram, POSATTRIB, "position");
 	glBindAttribLocation(_pointsUpdateProgram, SPDATTRIB, "velocity");
 
+	const GLchar *feedbackVaryings[] = {"Position", "Velocity"};
 	glTransformFeedbackVaryings(_pointsUpdateProgram, 2, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
 
 	glLinkProgram(_pointsUpdateProgram);
@@ -129,15 +111,6 @@ void Display::create_shaders( void )
 
 void Display::setup_communication_shaders( void )
 {
-	_uniBDeltaT = glGetUniformLocation(_pointsBoidsProgram, "deltaTime");
-	_uniBSampler = glGetUniformLocation(_pointsBoidsProgram, "boids");
-	_uniBNbBoids = glGetUniformLocation(_pointsBoidsProgram, "nbBoids");
-	_uniBVisualRange = glGetUniformLocation(_pointsBoidsProgram, "visualRange");
-	_uniBCenteringFactor = glGetUniformLocation(_pointsBoidsProgram, "centeringFactor");
-	_uniBMinDist = glGetUniformLocation(_pointsBoidsProgram, "minDistance");
-	_uniBAvoidFactor = glGetUniformLocation(_pointsBoidsProgram, "avoidFactor");
-	_uniBMatchingFactor = glGetUniformLocation(_pointsBoidsProgram, "matchingFactor");
-
 	_uniDeltaT = glGetUniformLocation(_pointsUpdateProgram, "deltaTime");
 
 	_uniPZoom = glGetUniformLocation(_pointsRenderProgram, "zoom");
@@ -188,26 +161,6 @@ void Display::setup_array_buffer( void )
 	glVertexAttribPointer(RADATTRIB, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
 
 	check_glstate("Display::setup_array_buffer", false);
-}
-
-void Display::update_texture( void )
-{
-	if (!_texture) {
-		glGenTextures(1, &_texture);
-		glGenBuffers(1, &_textureBuffer);
-	}
-
-	glBindBuffer(GL_TEXTURE_BUFFER, _textureBuffer);
-	glBufferData(GL_TEXTURE_BUFFER, 4 * _update_vertices.size() * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_BUFFER, _texture);
-
-	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, _textureBuffer);
-
-	glUniform1i(_uniBSampler, 0);
-
-	check_glstate("Display::update_texture", false);
 }
 
 void Display::setup_delaunay( void )
@@ -315,7 +268,7 @@ void Display::handleInputs( void )
 			_gui->addBool("draw delaunay", &_draw_delaunay);
 			_gui->addSliderInt("points", &_nb_points, 3, 2500);
 			_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
-			_gui->addSliderFloat("zoom", &_zoom, 0.5f, 5.0f);
+			_gui->addSliderFloat("zoom", &_zoom, 0.1f, 5.0f);
 			_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
 			_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
 			_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
@@ -329,42 +282,44 @@ void Display::handleInputs( void )
 
 void Display::render( void )
 {
-	if (_update_boids || _update_points) {
+	if (_update_boids) {
+		update_boids(_update_vertices, _boidSettings, _speed_multiplier * _deltaTime / 1000);
+
 		glBindVertexArray(_vaos[BUFFER::POINTS]);
 
-		if (_update_boids) {
-			glUseProgram(_pointsBoidsProgram);
-			glUniform1f(_uniBDeltaT, _speed_multiplier * _deltaTime / 1000);
-			// update_texture();
-			glUniform1i(_uniBNbBoids, _nb_points);
-			glUniform1f(_uniBVisualRange, _boidSettings.visualRange);
-			glUniform1f(_uniBCenteringFactor, _boidSettings.centeringFactor);
-			glUniform1f(_uniBMinDist, _boidSettings.minDistance);
-			glUniform1f(_uniBAvoidFactor, _boidSettings.avoidFactor);
-			glUniform1f(_uniBMatchingFactor, _boidSettings.matchingFactor);
-		} else {
-			glUseProgram(_pointsUpdateProgram);
-			glUniform1f(_uniDeltaT, _speed_multiplier * _deltaTime / 1000);
+		glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::POINTS]);
+		// std::cout << "vSize " << vSize << std::endl;
+		glBufferData(GL_ARRAY_BUFFER, 4 * _update_vertices.size() * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(POSATTRIB);
+		glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+		glEnableVertexAttribArray(SPDATTRIB);
+		glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+
+		check_glstate("Display::setup_array_buffer - update vertices", false);
+
+		if (_draw_delaunay) {
+			reset_delaunay();
 		}
+	} else if (_update_points) {
+		glBindVertexArray(_vaos[BUFFER::POINTS]);
+
+		glUseProgram(_pointsUpdateProgram);
+		glUniform1f(_uniDeltaT, _speed_multiplier * _deltaTime / 1000);
 
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, _vbos[BUFFER::POINTS]);
 		glEnable(GL_RASTERIZER_DISCARD); // we don't render anything
 
 		glBeginTransformFeedback(GL_POINTS);
-		if (_update_boids) {
-			for (int i = 0; i < _nb_points; ++i) {
-				update_texture();
-				glDrawArrays(GL_POINTS, i, 1);
-			}
-		} else {
-			glDrawArrays(GL_POINTS, 0, _update_vertices.size());
-		}
+		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
 		glEndTransformFeedback();
 
 		// read update's output and gen new delaunay
 		glFlush();
 		glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 4 * sizeof(GLfloat) * _update_vertices.size(), &_update_vertices[0].v);
-		reset_delaunay();
+		if (_draw_delaunay) {
+			reset_delaunay();
+		}
 
 		glDisable(GL_RASTERIZER_DISCARD);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, NULL); // unbind transform feedback buffer

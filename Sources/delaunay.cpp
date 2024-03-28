@@ -28,8 +28,26 @@ bool Vertex::equals( Vertex &other ) {
 	// return (nearly_equal(_x, other._x) && nearly_equal(_y, other._y));
 	return (_x == other._x && _y == other._y);
 }
+void Vertex::add( Vertex &other ) {
+	_x += other._x;
+	_y += other._y;
+}
+void Vertex::addV( Vertex other ) {
+	_x += other._x;
+	_y += other._y;
+}
+Vertex Vertex::scale( float scale ) {
+	return {_x * scale, _y * scale};
+}
+void Vertex::addX( float value ) { _x += value; }
+void Vertex::addY( float value ) { _y += value; }
 float Vertex::getX( void ) { return (_x); }
 float Vertex::getY( void ) { return (_y); }
+std::ostream &operator<<( std::ostream &out, Vertex &v )
+{
+	out << "Vertex " << v.getX() << ", " << v.getY() << std::endl;
+	return (out);
+}
 
 class Edge {
 	private:

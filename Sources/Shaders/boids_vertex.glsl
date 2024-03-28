@@ -1,4 +1,8 @@
-#version 150 core
+Not used ... sad story
+boids need to be updated one at a time, which can't be done from shader
+solution would be to use ssbo, BUT opengl 4.3 required .........
+
+/*#version 150 core
 
 in vec2 position;
 in vec2 velocity;
@@ -125,3 +129,4 @@ void main() {
     // Update the position based on the current velocity
     Position = position + Velocity;// * deltaTime;
 }
+*/

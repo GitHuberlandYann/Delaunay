@@ -32,18 +32,21 @@ typedef struct s_boidSettings {
 	float minDistance = 20.0f; // 20 used in separation, dist to stay away from other boids
 	float avoidFactor = 0.05f; // 0.05 used in separation
 	float matchingFactor = 0.05f; // 0.05 used in alignment
+	float length = 15.0f;
+	float width = 2.7f;
 }				t_boidSettings;
 
 class Display
 {
 	private:
 		GLFWwindow *_window;
-		GLuint _pointsUpdateProgram, _pointsRenderProgram, _shaderProgram, _vaos[2], _vbos[2];
+		GLuint _pointsUpdateProgram, _pointsRenderProgram, _boidsRenderProgram, _shaderProgram, _vaos[2], _vbos[2];
 		GLint _uniPZoom, _uniPCenter, _uniZoom, _uniCenter, _uniDeltaT, _uniMaxRadius, _uniBigColor, _uniSmallColor;
+		GLint _uniBZoom, _uniBCenter, _uniBBoidLength, _uniBBoidWidth;
 		GLint _winWidth, _winHeight;
 		t_boidSettings _boidSettings;
 		int _fps, _tps, _nb_points;
-		bool _input_released, _update_boids, _update_points, _draw_points, _draw_delaunay;
+		bool _input_released, _update_boids, _update_points, _draw_points, _draw_boids, _draw_delaunay;
 		float _deltaTime, _speed_multiplier, _zoom;
 		std::array<float, 2> _center;
 		unsigned _seed;

@@ -4,7 +4,7 @@
 
 Display::Display( void )
 	: _window(NULL), _winWidth(WIN_WIDTH), _winHeight(WIN_HEIGHT), _nb_points(1000),
-	_update_boids(false), _update_points(false), _draw_points(true), _draw_delaunay(false),
+	_update_boids(false), _update_points(false), _draw_points(true), _draw_boids(false), _draw_delaunay(false),
 	_speed_multiplier(1.0f), _zoom(1.0f), _center({0.0f, 0.0f}), _seed(1503),
 	_bigCol({0.8f, 0.8f, 0.8f, 1.0f}), _smallCol({0.2f, 0.2f, 0.2f, 1.0f})
 {
@@ -96,6 +96,18 @@ void Display::create_shaders( void )
 
 	check_glstate("points render shader program successfully created", true);
 
+	_boidsRenderProgram = createShaderProgram("boids_render_vertex", "boids_render_geometry", "boids_render_fragment");
+
+	glBindFragDataLocation(_boidsRenderProgram, 0, "outColor");
+
+	glBindAttribLocation(_boidsRenderProgram, POSATTRIB, "position");
+	glBindAttribLocation(_boidsRenderProgram, SPDATTRIB, "velocity");
+
+	glLinkProgram(_boidsRenderProgram);
+	glUseProgram(_boidsRenderProgram);
+
+	check_glstate("boids render shader program successfully created", true);
+
 	_shaderProgram = createShaderProgram("vertex", "", "fragment");
 
 	glBindFragDataLocation(_shaderProgram, 0, "outColor");
@@ -121,6 +133,11 @@ void Display::setup_communication_shaders( void )
 	_uniMaxRadius = glGetUniformLocation(_shaderProgram, "maxRadius");
 	_uniBigColor = glGetUniformLocation(_shaderProgram, "bigColor");
 	_uniSmallColor = glGetUniformLocation(_shaderProgram, "smallColor");
+
+	_uniBZoom = glGetUniformLocation(_boidsRenderProgram, "zoom");
+	_uniBCenter = glGetUniformLocation(_boidsRenderProgram, "center");
+	_uniBBoidLength = glGetUniformLocation(_boidsRenderProgram, "boidLength");
+	_uniBBoidWidth = glGetUniformLocation(_boidsRenderProgram, "boidWidth");
 
 	glGenVertexArrays(2, _vaos);
 	glGenBuffers(2, _vbos);
@@ -263,8 +280,11 @@ void Display::handleInputs( void )
 			_gui->addSliderFloat("min dist", &_boidSettings.minDistance, 0, 100, 3);
 			_gui->addSliderFloat("avoid factor", &_boidSettings.avoidFactor, 0, 0.3f, 3);
 			_gui->addSliderFloat("matching factor", &_boidSettings.matchingFactor, 0, 0.3f, 3);
+			_gui->addSliderFloat("boid length", &_boidSettings.length, 0, 20.0f);
+			_gui->addSliderFloat("boid width", &_boidSettings.width, 0, 20.0f);
 			_gui->addBool("update points", &_update_points);
 			_gui->addBool("draw points", &_draw_points);
+			_gui->addBool("draw boids", &_draw_boids);
 			_gui->addBool("draw delaunay", &_draw_delaunay);
 			_gui->addSliderInt("points", &_nb_points, 3, 2500);
 			_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
@@ -330,6 +350,16 @@ void Display::render( void )
 		glUseProgram(_pointsRenderProgram);
 		glUniform1f(_uniPZoom, _zoom);
 		glUniform2fv(_uniPCenter, 1, &_center[0]);
+		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
+	}
+
+	if (_draw_boids) {
+		glBindVertexArray(_vaos[BUFFER::POINTS]);
+		glUseProgram(_boidsRenderProgram);
+		glUniform1f(_uniBZoom, _zoom);
+		glUniform2fv(_uniBCenter, 1, &_center[0]);
+		glUniform1f(_uniBBoidLength, _boidSettings.length);
+		glUniform1f(_uniBBoidWidth, _boidSettings.width);
 		glDrawArrays(GL_POINTS, 0, _update_vertices.size());
 	}
 

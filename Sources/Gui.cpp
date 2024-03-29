@@ -345,7 +345,6 @@ void Gui::setMouseButton( GLFWwindow *window, int button, int action )
 					break ;
 				case 0: // close window
 					rmWindow(win.id);
-					_selection = -1;
 					_closing_window = true;
 					break ;
 				case 1: // move around
@@ -560,6 +559,8 @@ void Gui::rmWindow( int id )
 		++index;
 	}
 	if (index >= static_cast<int>(_content.size())) return ;
+	if (index == _selection) _selection = -1;
+	else if (_selection != -1 && index < _selection) --_selection;
 	_content.erase(_content.begin() + index);
 	for (int &d : _draw_order) {
 		if (d > index) --d;

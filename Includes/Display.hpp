@@ -61,7 +61,7 @@ class Display
 		void setup_window( void );
 		void create_shaders( void );
 		void setup_communication_shaders( void );
-		void setup_array_buffer( void );
+		void setup_array_buffer( int buffer );
 		void setup_delaunay( void );
 		void reset_delaunay( void );
 

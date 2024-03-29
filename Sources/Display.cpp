@@ -145,23 +145,26 @@ void Display::setup_communication_shaders( void )
 	check_glstate("\nCommunication with shader programs successfully established", true);
 }
 
-void Display::setup_array_buffer( void )
+void Display::setup_array_buffer( int buffer )
 {
-	size_t pSize = _update_vertices.size();
-	if (!pSize) return ;
+	if (buffer == BUFFER::POINTS) {
+		size_t pSize = _update_vertices.size();
+		if (!pSize) return ;
 
-	glBindVertexArray(_vaos[BUFFER::POINTS]);
+		glBindVertexArray(_vaos[BUFFER::POINTS]);
 
-	glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::POINTS]);
-	// std::cout << "vSize " << vSize << std::endl;
-	glBufferData(GL_ARRAY_BUFFER, 4 * pSize * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::POINTS]);
+		// std::cout << "vSize " << vSize << std::endl;
+		glBufferData(GL_ARRAY_BUFFER, 4 * pSize * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
 
-	glEnableVertexAttribArray(POSATTRIB);
-	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(SPDATTRIB);
-	glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+		glEnableVertexAttribArray(POSATTRIB);
+		glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
+		glEnableVertexAttribArray(SPDATTRIB);
+		glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
 
-	check_glstate("Display::setup_array_buffer - update vertices", false);
+		check_glstate("Display::setup_array_buffer - update vertices", false);
+		return ;
+	}
 
 	size_t vSize = _vertices.size();
 	if (!vSize) return ;
@@ -183,38 +186,19 @@ void Display::setup_array_buffer( void )
 void Display::setup_delaunay( void )
 {
 	_update_vertices.clear();
-	_vertices.clear();
-	_points.clear();
 	for (int i = 0; i < _nb_points; ++i) {
 		Vertex point(Vertex(1000.0f * Random::randomFloat(_seed) - 500.0f, 1000.0f * Random::randomFloat(_seed) - 500.0f));
 		// _points.push_back(Vertex(2.0f * Random::randomFloat(_seed) - 1.0f, 2.0f * Random::randomFloat(_seed) - 1.0f));
 		float vx = 2.0f * Random::randomFloat(_seed) - 1.0f, vy = 2.0f * Random::randomFloat(_seed) - 1.0f;
 		_update_vertices.push_back({point, Vertex((vx > 0) ? 50.0f + vx * 10.0f : -50.0f + vx * 10.0f, (vy > 0) ? 50.0f + vy * 10.0f : -50.0f + vy * 10.0f)});
-		_points.push_back(point);
 		// _points.push_back(Vertex(0.5f * Random::randomFloat(_seed) - 0.25f, 0.5f * Random::randomFloat(_seed) - 0.25f));
 	}
-	// (void)_seed;
-	// _points.push_back(Vertex(0, 0));
-	// _points.push_back(Vertex(0, 1));
-	// _points.push_back(Vertex(1, 0.5));
-	// vertices.push_back(Vertex(-1, 0.5));
 
-	_delaunay = triangulate(_points);
-
-	float maxRadius = 0;
-	for (auto &t : _delaunay) {
-		// float radius = t.getRadius();
-		float radius = std::abs((t.v1.x - t.v0.x) * (t.v2.y - t.v1.y)
-				- (t.v2.x - t.v1.x) * (t.v1.y - t.v0.y)) * 0.5f;
-		// std::cout << "radius of triangle: " << radius << std::endl;
-		if (radius > maxRadius) maxRadius = radius;
-		_vertices.push_back({t.v0, radius});
-		_vertices.push_back({t.v1, radius});
-		_vertices.push_back({t.v2, radius});
-	}
-	glUseProgram(_shaderProgram);
-	glUniform1f(_uniMaxRadius, maxRadius);
-	setup_array_buffer();
+	setup_array_buffer(BUFFER::POINTS);
+	bool tmp = _draw_delaunay;
+	_draw_delaunay = true;
+	reset_delaunay();
+	_draw_delaunay = tmp;
 }
 
 void Display::reset_delaunay( void )
@@ -233,6 +217,7 @@ void Display::reset_delaunay( void )
 	float maxRadius = 0;
 	for (auto &t : _delaunay) {
 		// float radius = t.getRadius();
+		// radius is triang area
 		float radius = std::abs((t.v1.x - t.v0.x) * (t.v2.y - t.v1.y)
 				- (t.v2.x - t.v1.x) * (t.v1.y - t.v0.y)) * 0.5f;
 		// std::cout << "radius of triangle: " << radius << std::endl;
@@ -243,22 +228,8 @@ void Display::reset_delaunay( void )
 	}
 	glUseProgram(_shaderProgram);
 	glUniform1f(_uniMaxRadius, maxRadius);
-		
-	size_t vSize = _vertices.size();
-	if (!vSize) return ;
-
-	glBindVertexArray(_vaos[BUFFER::TRIANGLES]);
-
-	glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::TRIANGLES]);
-	// std::cout << "vSize " << vSize << std::endl;
-	glBufferData(GL_ARRAY_BUFFER, 3 * vSize * sizeof(GLfloat), &_vertices[0].v, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(POSATTRIB);
-	glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(RADATTRIB);
-	glVertexAttribPointer(RADATTRIB, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
-
-	check_glstate("Display::reset_delaunay", false);
+	
+	setup_array_buffer(BUFFER::TRIANGLES);
 }
 
 void Display::handleInputs( void )
@@ -298,23 +269,8 @@ void Display::render( void )
 {
 	if (_update_boids) {
 		update_boids(_update_vertices, _boidSettings, _speed_multiplier * _deltaTime / 1000);
-
-		glBindVertexArray(_vaos[BUFFER::POINTS]);
-
-		glBindBuffer(GL_ARRAY_BUFFER, _vbos[BUFFER::POINTS]);
-		// std::cout << "vSize " << vSize << std::endl;
-		glBufferData(GL_ARRAY_BUFFER, 4 * _update_vertices.size() * sizeof(GLfloat), &_update_vertices[0].v, GL_STATIC_DRAW);
-
-		glEnableVertexAttribArray(POSATTRIB);
-		glVertexAttribPointer(POSATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(0 * sizeof(GLfloat)));
-		glEnableVertexAttribArray(SPDATTRIB);
-		glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
-
-		check_glstate("Display::render", false);
-
-		if (_draw_delaunay) {
-			reset_delaunay();
-		}
+		setup_array_buffer(BUFFER::POINTS);
+		reset_delaunay();
 	} else if (_update_points) {
 		glBindVertexArray(_vaos[BUFFER::POINTS]);
 
@@ -331,9 +287,7 @@ void Display::render( void )
 		// read update's output and gen new delaunay
 		glFlush();
 		glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 4 * sizeof(GLfloat) * _update_vertices.size(), &_update_vertices[0].v);
-		if (_draw_delaunay) {
-			reset_delaunay();
-		}
+		reset_delaunay();
 
 		glDisable(GL_RASTERIZER_DISCARD);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, NULL); // unbind transform feedback buffer

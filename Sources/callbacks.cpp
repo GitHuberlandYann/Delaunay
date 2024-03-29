@@ -71,6 +71,14 @@ void gui_randomize_callback( int index )
 	}
 }
 
+void boid_settings_callback( int index )
+{
+	(void)index;
+	if (display) {
+		display->boid_settings();
+	}
+}
+
 void error_callback( int error, const char *msg )
 {
     std::string s;

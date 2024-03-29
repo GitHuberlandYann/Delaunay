@@ -204,13 +204,13 @@ void Display::setup_delaunay( void )
 	float maxRadius = 0;
 	for (auto &t : _delaunay) {
 		// float radius = t.getRadius();
-		float radius = std::abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
-				- (t.getV2().getX() - t.getV1().getX()) * (t.getV1().getY() - t.getV0().getY())) * 0.5f;
+		float radius = std::abs((t.v1.x - t.v0.x) * (t.v2.y - t.v1.y)
+				- (t.v2.x - t.v1.x) * (t.v1.y - t.v0.y)) * 0.5f;
 		// std::cout << "radius of triangle: " << radius << std::endl;
 		if (radius > maxRadius) maxRadius = radius;
-		_vertices.push_back({t.getV0(), radius});
-		_vertices.push_back({t.getV1(), radius});
-		_vertices.push_back({t.getV2(), radius});
+		_vertices.push_back({t.v0, radius});
+		_vertices.push_back({t.v1, radius});
+		_vertices.push_back({t.v2, radius});
 	}
 	glUseProgram(_shaderProgram);
 	glUniform1f(_uniMaxRadius, maxRadius);
@@ -233,13 +233,13 @@ void Display::reset_delaunay( void )
 	float maxRadius = 0;
 	for (auto &t : _delaunay) {
 		// float radius = t.getRadius();
-		float radius = std::abs((t.getV1().getX() - t.getV0().getX()) * (t.getV2().getY() - t.getV1().getY())
-				- (t.getV2().getX() - t.getV1().getX()) * (t.getV1().getY() - t.getV0().getY())) * 0.5f;
+		float radius = std::abs((t.v1.x - t.v0.x) * (t.v2.y - t.v1.y)
+				- (t.v2.x - t.v1.x) * (t.v1.y - t.v0.y)) * 0.5f;
 		// std::cout << "radius of triangle: " << radius << std::endl;
 		if (radius > maxRadius) maxRadius = radius;
-		_vertices.push_back({t.getV0(), radius});
-		_vertices.push_back({t.getV1(), radius});
-		_vertices.push_back({t.getV2(), radius});
+		_vertices.push_back({t.v0, radius});
+		_vertices.push_back({t.v1, radius});
+		_vertices.push_back({t.v2, radius});
 	}
 	glUseProgram(_shaderProgram);
 	glUniform1f(_uniMaxRadius, maxRadius);
@@ -275,13 +275,7 @@ void Display::handleInputs( void )
 			_gui->addVarFloat("", &_deltaTime, "ms this frame");
 			_gui->addVarInt("", &_fps, " FPS");
 			_gui->addBool("boids", &_update_boids);
-			_gui->addSliderFloat("visual range", &_boidSettings.visualRange, 0, 500);
-			_gui->addSliderFloat("centering factor", &_boidSettings.centeringFactor, 0, 0.03f, 3);
-			_gui->addSliderFloat("min dist", &_boidSettings.minDistance, 0, 100, 3);
-			_gui->addSliderFloat("avoid factor", &_boidSettings.avoidFactor, 0, 0.3f, 3);
-			_gui->addSliderFloat("matching factor", &_boidSettings.matchingFactor, 0, 0.3f, 3);
-			_gui->addSliderFloat("boid length", &_boidSettings.length, 0, 20.0f);
-			_gui->addSliderFloat("boid width", &_boidSettings.width, 0, 20.0f);
+			_gui->addButton("boids settings", boid_settings_callback);
 			_gui->addBool("update points", &_update_points);
 			_gui->addBool("draw points", &_draw_points);
 			_gui->addBool("draw boids", &_draw_boids);
@@ -316,7 +310,7 @@ void Display::render( void )
 		glEnableVertexAttribArray(SPDATTRIB);
 		glVertexAttribPointer(SPDATTRIB, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
 
-		check_glstate("Display::setup_array_buffer - update vertices", false);
+		check_glstate("Display::render", false);
 
 		if (_draw_delaunay) {
 			reset_delaunay();
@@ -443,6 +437,24 @@ void Display::setWindowSize( int width, int height )
 	_winWidth = width;
 	_winHeight = height;
 	_gui->setWindowSize(width, height);
+}
+
+void Display::boid_settings( void )
+{
+	if (_gui->createWindow(1, "boid settings")) {
+		_gui->addSliderFloat("visual range", &_boidSettings.visualRange, 0, 500);
+		_gui->addSliderFloat("centering factor", &_boidSettings.centeringFactor, 0, 0.03f, 3);
+		_gui->addSliderFloat("min dist", &_boidSettings.minDistance, 0, 100, 3);
+		_gui->addSliderFloat("avoid factor", &_boidSettings.avoidFactor, 0, 0.3f, 3);
+		_gui->addSliderFloat("matching factor", &_boidSettings.matchingFactor, 0, 0.3f, 3);
+		_gui->addSliderFloat("boid length", &_boidSettings.length, 0, 20.0f);
+		_gui->addSliderFloat("boid width", &_boidSettings.width, 0, 20.0f);
+		_gui->addSliderFloat("speed limit", &_boidSettings.speedLimit, 10.0f, 200.0f);
+		_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
+		_gui->addSliderFloat("zoom", &_zoom, 0.1f, 5.0f);
+		_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
+		_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
+	}
 }
 
 void Display::start( void )

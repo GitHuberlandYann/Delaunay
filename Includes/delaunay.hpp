@@ -3,19 +3,22 @@
 
 class Vertex {
 	private:
-		float _x, _y;
 
 	public:
+		float x, y;
+
 		Vertex( float x, float y );
 
 		bool equals( Vertex &other );
-		void add( Vertex &other );
-		void addV( Vertex other );
-		Vertex scale( float scale );
-		void addX( float value );
-		void addY( float value );
-		float getX( void );
-		float getY( void );
+		float distance( Vertex other );
+		void operator+=( Vertex other );
+		void operator-=( Vertex other );
+		void operator*=( float value );
+		void operator/=( float value );
+		Vertex operator+( Vertex other );
+		Vertex operator-( Vertex other );
+		Vertex operator*( float value );
+		Vertex operator/( float value );
 };
 
 typedef struct s_circle {
@@ -24,17 +27,14 @@ typedef struct s_circle {
 
 class Triangle {
 	private:
-		Vertex _v0, _v1, _v2;
 		t_circle _circumCirc;
 	
 	public:
+		Vertex v0, v1, v2;
 		Triangle( Vertex v0, Vertex v1, Vertex v2 );
 
 		bool inCircumCircle( Vertex &v );
 		bool shareEdge( Triangle &t );
-		Vertex getV0( void );
-		Vertex getV1( void );
-		Vertex getV2( void );
 		float getRadius( void );
 };
 

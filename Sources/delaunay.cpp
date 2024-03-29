@@ -23,56 +23,71 @@
 //   return diff < std::max(abs_th, epsilon * norm);
 // }
 
-Vertex::Vertex( float x, float y ) : _x(x), _y(y) {}
+Vertex::Vertex( float x, float y ) : x(x), y(y) {}
 bool Vertex::equals( Vertex &other ) {
 	// return (nearly_equal(_x, other._x) && nearly_equal(_y, other._y));
-	return (_x == other._x && _y == other._y);
+	return (x == other.x && y == other.y);
 }
-void Vertex::add( Vertex &other ) {
-	_x += other._x;
-	_y += other._y;
+float Vertex::distance( Vertex other ) {
+	return std::sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
 }
-void Vertex::addV( Vertex other ) {
-	_x += other._x;
-	_y += other._y;
+void Vertex::operator+=( Vertex other ) {
+	x += other.x;
+	y += other.y;
 }
-Vertex Vertex::scale( float scale ) {
-	return {_x * scale, _y * scale};
+void Vertex::operator-=( Vertex other ) {
+	x -= other.x;
+	y -= other.y;
 }
-void Vertex::addX( float value ) { _x += value; }
-void Vertex::addY( float value ) { _y += value; }
-float Vertex::getX( void ) { return (_x); }
-float Vertex::getY( void ) { return (_y); }
+void Vertex::operator*=( float value ) {
+	x *= value;
+	y *= value;
+}
+void Vertex::operator/=( float value ) {
+	x /= value;
+	y /= value;
+}
+Vertex Vertex::operator+( Vertex other ) {
+	return {x + other.x, y + other.y};
+}
+Vertex Vertex::operator-( Vertex other ) {
+	return {x - other.x, y - other.y};
+}
+Vertex Vertex::operator*( float value ) {
+	return {x * value, y * value};
+}
+Vertex Vertex::operator/( float value ) {
+	return {x / value, y / value};
+}
 std::ostream &operator<<( std::ostream &out, Vertex &v )
 {
-	out << "Vertex " << v.getX() << ", " << v.getY() << std::endl;
+	out << "Vertex " << v.x << ", " << v.y << std::endl;
 	return (out);
 }
 
 class Edge {
 	private:
-		Vertex _v0, _v1;
 
 	public:
-		Edge( Vertex v0, Vertex v1 ) : _v0(v0), _v1(v1) {}
+		Vertex v0, v1;
+
+		Edge( Vertex v0, Vertex v1 ) : v0(v0), v1(v1) {}
 		bool equals( Edge &other ) {
-			return ((_v0.equals(other._v0) && _v1.equals(other._v1)) || (_v0.equals(other._v1) && _v1.equals(other._v0)));
+			return ((v0.equals(other.v0) && v1.equals(other.v1)) || (v0.equals(other.v1) && v1.equals(other.v0)));
 		}
-		Vertex getV0( void ) { return (_v0); }
-		Vertex getV1( void ) { return (_v1); }
 };
 
 static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 {
-	float A = v1.getX() - v0.getX();
-	float B = v1.getY() - v0.getY();
-	float C = v2.getX() - v0.getX();
-	float D = v2.getY() - v0.getY();
+	float A = v1.x - v0.x;
+	float B = v1.y - v0.y;
+	float C = v2.x - v0.x;
+	float D = v2.y - v0.y;
 
-	float E = A * (v0.getX() + v1.getX()) + B * (v0.getY() + v1.getY());
-	float F = C * (v0.getX() + v2.getX()) + D * (v0.getY() + v2.getY());
+	float E = A * (v0.x + v1.x) + B * (v0.y + v1.y);
+	float F = C * (v0.x + v2.x) + D * (v0.y + v2.y);
 
-	float G = 2.0 * (A * (v2.getY() - v1.getY()) - B * (v2.getX() - v1.getX()));
+	float G = 2.0 * (A * (v2.y - v1.y) - B * (v2.x - v1.x));
 
 	float dx, dy;
 
@@ -80,10 +95,10 @@ static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 
 	// Collinear points, get extremes and use midpoint as center
 	if (round(std::abs(G)) == 0) {
-		float minx = std::min(v0.getX(), std::min(v1.getX(), v2.getX()));
-		float miny = std::min(v0.getY(), std::min(v1.getY(), v2.getY()));
-		float maxx = std::max(v0.getX(), std::max(v1.getX(), v2.getX()));
-		float maxy = std::max(v0.getY(), std::max(v1.getY(), v2.getY()));
+		float minx = std::min(v0.x, std::min(v1.x, v2.x));
+		float miny = std::min(v0.y, std::min(v1.y, v2.y));
+		float maxx = std::max(v0.x, std::max(v1.x, v2.x));
+		float maxy = std::max(v0.y, std::max(v1.y, v2.y));
 
 		res.x = (minx + maxx) * 0.5f;
 		res.y = (miny + maxy) * 0.5f;
@@ -97,40 +112,37 @@ static t_circle calcCircumCirc( Vertex v0, Vertex v1, Vertex v2 )
 		res.x = cx;
 		res.y = cy;
 
-		dx = res.x - v0.getX();
-		dy = res.y - v0.getY();
+		dx = res.x - v0.x;
+		dy = res.y - v0.y;
 	}
 	res.r = (dx * dx + dy * dy);  // sqrt
 
 	return (res);
 }
 
-Triangle::Triangle( Vertex v0, Vertex v1, Vertex v2 ) : _v0(v0), _v1(v1), _v2(v2) {
+Triangle::Triangle( Vertex v0, Vertex v1, Vertex v2 ) : v0(v0), v1(v1), v2(v2) {
 	_circumCirc = calcCircumCirc(v0, v1, v2);
 }
 bool Triangle::inCircumCircle( Vertex &v ) {
-	float dx = _circumCirc.x - v.getX();
-	float dy = _circumCirc.y - v.getY();
+	float dx = _circumCirc.x - v.x;
+	float dy = _circumCirc.y - v.y;
 	return ((dx * dx + dy * dy) <= _circumCirc.r);  // sqrt
 }
 bool Triangle::shareEdge( Triangle &t ) {
-	return (_v0.equals(t._v0) || _v0.equals(t._v1) || _v0.equals(t._v2)
-		|| _v1.equals(t._v0) || _v1.equals(t._v1) || _v1.equals(t._v2)
-		|| _v2.equals(t._v0) || _v2.equals(t._v1) || _v2.equals(t._v2));
+	return (v0.equals(t.v0) || v0.equals(t.v1) || v0.equals(t.v2)
+		|| v1.equals(t.v0) || v1.equals(t.v1) || v1.equals(t.v2)
+		|| v2.equals(t.v0) || v2.equals(t.v1) || v2.equals(t.v2));
 }
-Vertex Triangle::getV0( void ) { return (_v0); }
-Vertex Triangle::getV1( void ) { return (_v1); }
-Vertex Triangle::getV2( void ) { return (_v2); }
 float Triangle::getRadius( void ) { return (_circumCirc.r); }
 
 std::ostream &operator<<( std::ostream &out, Triangle &t )
 {
-	out << "Triangle " << t.getV0().getX() << ", " << t.getV0().getY() << " | " << t.getV1().getX() << ", " << t.getV1().getY() << " | " << t.getV2().getX() << ", " << t.getV2().getY() << std::endl;
+	out << "Triangle " << t.v0.x << ", " << t.v0.y << " | " << t.v1.x << ", " << t.v1.y << " | " << t.v2.x << ", " << t.v2.y << std::endl;
 	return (out);
 }
 std::ostream &operator<<( std::ostream &out, Edge &e )
 {
-	out << "Edge " << e.getV0().getX() << ", " << e.getV0().getY() << " | " << e.getV1().getX() << ", " << e.getV1().getY() << std::endl;
+	out << "Edge " << e.v0.x << ", " << e.v0.y << " | " << e.v1.x << ", " << e.v1.y << std::endl;
 	return (out);
 }
 
@@ -140,10 +152,10 @@ Triangle superTriangle( std::vector<Vertex> &vertices )
 	float minY = minX, maxY = maxX;
 
 	for (auto &v : vertices) {
-		minX = std::min(minX, v.getX());
-		minY = std::min(minY, v.getY());
-		maxX = std::max(maxX, v.getX());
-		maxY = std::max(maxY, v.getY());
+		minX = std::min(minX, v.x);
+		minY = std::min(minY, v.y);
+		maxX = std::max(maxX, v.x);
+		maxY = std::max(maxY, v.y);
 	}
 
 	float dx = (maxX - minX) * 10;
@@ -163,9 +175,9 @@ static void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 	// rm triangles with circumCircle containing the vertex
 	for (auto it = triangles.begin(); it != triangles.end();) {
 		if (it->inCircumCircle(vertex)) {
-			edges.push_back({it->getV0(), it->getV1()});
-			edges.push_back({it->getV1(), it->getV2()});
-			edges.push_back({it->getV2(), it->getV0()});
+			edges.push_back({it->v0, it->v1});
+			edges.push_back({it->v1, it->v2});
+			edges.push_back({it->v2, it->v0});
 			// std::cout << "\trm one " << *it;
 			it = triangles.erase(it);
 		} else {
@@ -185,7 +197,7 @@ static void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 			}
 		}
 		if (unique) {
-			triangles.push_back({it->getV0(), it->getV1(), vertex});
+			triangles.push_back({it->v0, it->v1, vertex});
 			// uniqueEdges.push_back(*it); // TODO just call triangles.push_back here
 		// 	std::cout << "\tunique " << *it;
 		}// else std::cout << "\tdouble " << *it;
@@ -193,9 +205,9 @@ static void addVertex( std::vector<Triangle> &triangles, Vertex vertex )
 	}
 
 	// for (auto &e : uniqueEdges) {
-	// 	// Triangle t(e.getV0(), e.getV1(), vertex);
+	// 	// Triangle t(e.v0, e.v1, vertex);
 	// 		// std::cout << "\tadd one " << t;
-	// 	triangles.push_back({e.getV0(), e.getV1(), vertex});
+	// 	triangles.push_back({e.v0, e.v1, vertex});
 	// }
 }
 
@@ -226,6 +238,6 @@ std::vector<Triangle> triangulate( std::vector<Vertex> &vertices )
 	}
     // b.stamp("rm shared edges");
 	// res.push_back(st);
-	// std::cout << "super triang is " << st.getV0().getX() << ", " << st.getV0().getY() << " - " << st.getV1().getX() << ", " << st.getV1().getY() << " - " << st.getV2().getX() << ", " << st.getV2().getY() << std::endl;
+	// std::cout << "super triang is " << st.v0.x << ", " << st.v0.y << " - " << st.v1.x << ", " << st.v1.y << " - " << st.v2.x << ", " << st.v2.y << std::endl;
 	return (res);
 }

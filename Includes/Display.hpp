@@ -34,6 +34,7 @@ typedef struct s_boidSettings {
 	float matchingFactor = 0.05f; // 0.05 used in alignment
 	float length = 15.0f;
 	float width = 2.7f;
+	float speedLimit = 100.0f;
 }				t_boidSettings;
 
 class Display
@@ -73,6 +74,7 @@ class Display
 		~Display( void );
 
 		void setWindowSize( int width, int height );
+		void boid_settings( void );
 
 		void start( void );
 };

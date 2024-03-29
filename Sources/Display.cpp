@@ -242,24 +242,7 @@ void Display::handleInputs( void )
 
 	if (_input_released && glfwGetKey(_window, GLFW_KEY_F3) == GLFW_PRESS) {
 		_input_released = false;
-		if (_gui->createWindow(-1, "Debug window", {20, 20}, {270, 150})) {
-			_gui->addVarFloat("", &_deltaTime, "ms this frame");
-			_gui->addVarInt("", &_fps, " FPS");
-			_gui->addBool("boids", &_update_boids);
-			_gui->addButton("boids settings", boid_settings_callback);
-			_gui->addBool("update points", &_update_points);
-			_gui->addBool("draw points", &_draw_points);
-			_gui->addBool("draw boids", &_draw_boids);
-			_gui->addBool("draw delaunay", &_draw_delaunay);
-			_gui->addSliderInt("points", &_nb_points, 3, 2500);
-			_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
-			_gui->addSliderFloat("zoom", &_zoom, 0.1f, 5.0f);
-			_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
-			_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
-			_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
-			_gui->addColor("small color", {&_smallCol[0], &_smallCol[1], &_smallCol[2], &_smallCol[3]});
-			_gui->addButton("RANDOMIZE", gui_randomize_callback);
-		}
+		debug_window();
 	} else if (glfwGetKey(_window, GLFW_KEY_F3) == GLFW_RELEASE) {
 		_input_released = true;
 	}
@@ -393,6 +376,28 @@ void Display::setWindowSize( int width, int height )
 	_gui->setWindowSize(width, height);
 }
 
+void Display::debug_window( void )
+{
+	if (_gui->createWindow(-1, "Debug window", {20, 20}, {270, 150})) {
+		_gui->addVarFloat("", &_deltaTime, "ms this frame");
+		_gui->addVarInt("", &_fps, " FPS");
+		_gui->addBool("boids", &_update_boids);
+		_gui->addButton("boids settings", boid_settings_callback);
+		_gui->addBool("update points", &_update_points);
+		_gui->addBool("draw points", &_draw_points);
+		_gui->addBool("draw boids", &_draw_boids);
+		_gui->addBool("draw delaunay", &_draw_delaunay);
+		_gui->addSliderInt("points", &_nb_points, 3, 2500);
+		_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
+		_gui->addSliderFloat("zoom", &_zoom, 0.1f, 5.0f);
+		_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
+		_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
+		_gui->addColor("big color", {&_bigCol[0], &_bigCol[1], &_bigCol[2], &_bigCol[3]});
+		_gui->addColor("small color", {&_smallCol[0], &_smallCol[1], &_smallCol[2], &_smallCol[3]});
+		_gui->addButton("RANDOMIZE", gui_randomize_callback);
+	}
+}
+
 void Display::boid_settings( void )
 {
 	if (_gui->createWindow(1, "boid settings")) {
@@ -404,10 +409,12 @@ void Display::boid_settings( void )
 		_gui->addSliderFloat("boid length", &_boidSettings.length, 0, 20.0f);
 		_gui->addSliderFloat("boid width", &_boidSettings.width, 0, 20.0f);
 		_gui->addSliderFloat("speed limit", &_boidSettings.speedLimit, 10.0f, 200.0f);
+		_gui->addSliderFloat("turn factor", &_boidSettings.turnFactor, 0.0f, 5.0f);
 		_gui->addSliderFloat("Speed multiplier", &_speed_multiplier, 0.0f, 3.0f);
 		_gui->addSliderFloat("zoom", &_zoom, 0.1f, 5.0f);
 		_gui->addSliderFloat("center x", &_center[0], -500.0f, 500.0f);
 		_gui->addSliderFloat("center y", &_center[1], -500.0f, 500.0f);
+		_gui->addButton("debug window", debug_window_callback);
 	}
 }
 

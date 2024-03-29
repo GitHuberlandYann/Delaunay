@@ -124,10 +124,9 @@ void limitSpeed( t_updateShaderInput &boid, float speedLimit ) {
 	}
 }
 
-void keepWithinBounds( t_updateShaderInput &boid ) {
+void keepWithinBounds( t_updateShaderInput &boid, const float turnFactor ) {
 	const float marginMin = -450;
 	const float marginMax = 450;
-	const float turnFactor = 1;
 
 	if (boid.v.x < marginMin) {
 		boid.speed.x += turnFactor;
@@ -151,7 +150,7 @@ void update_boids( std::vector<t_updateShaderInput> &boids, t_boidSettings boidS
 		// alignment(b, boids, boidSettings);
 		applyRules(b, boids, boidSettings);
 		limitSpeed(b, boidSettings.speedLimit);
-		keepWithinBounds(b);
+		keepWithinBounds(b, boidSettings.turnFactor);
 
 		// Update the position based on the current velocity
 		b.v += b.speed * deltaTime;

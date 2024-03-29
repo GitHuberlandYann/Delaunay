@@ -12,6 +12,7 @@ void mouse_button_callback( GLFWwindow *window, int button, int action, int mods
 
 void gui_randomize_callback( int index );
 void boid_settings_callback( int index );
+void debug_window_callback( int index );
 
 void error_callback( int error, const char *msg );
 

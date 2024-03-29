@@ -35,6 +35,7 @@ typedef struct s_boidSettings {
 	float length = 15.0f;
 	float width = 2.7f;
 	float speedLimit = 100.0f;
+	float turnFactor = 1.0f; // used in keep within bounds
 }				t_boidSettings;
 
 class Display
@@ -74,6 +75,7 @@ class Display
 		~Display( void );
 
 		void setWindowSize( int width, int height );
+		void debug_window( void );
 		void boid_settings( void );
 
 		void start( void );

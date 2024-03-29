@@ -79,6 +79,14 @@ void boid_settings_callback( int index )
 	}
 }
 
+void debug_window_callback( int index )
+{
+	(void)index;
+	if (display) {
+		display->debug_window();
+	}
+}
+
 void error_callback( int error, const char *msg )
 {
     std::string s;

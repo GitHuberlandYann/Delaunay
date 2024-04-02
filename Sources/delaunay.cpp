@@ -29,7 +29,11 @@ bool Vertex::equals( Vertex &other ) {
 	return (x == other.x && y == other.y);
 }
 float Vertex::distance( Vertex other ) {
+	#if __linux__
 	return std::sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
+	#else
+	return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
+	#endif
 }
 void Vertex::operator+=( Vertex other ) {
 	x += other.x;
